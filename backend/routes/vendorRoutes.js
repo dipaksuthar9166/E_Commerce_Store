@@ -7,6 +7,7 @@ const {
   getVendorCategories,
   addVendorCategory,
   getVendorProducts,
+  lookupProductByBarcode,
   addVendorProduct,
   updateProduct,
   updateProductPromotion,
@@ -22,6 +23,8 @@ router.put('/shop/toggle-online', protect, authorize('vendor'), toggleShopOnline
 router.get('/categories', protect, authorize('vendor'), getVendorCategories);
 router.post('/categories', protect, authorize('vendor'), addVendorCategory);
 router.get('/products', protect, authorize('vendor'), getVendorProducts);
+// Barcode auto-fill — must be registered BEFORE /products/:id routes
+router.get('/products/lookup/:barcode', protect, authorize('vendor'), lookupProductByBarcode);
 router.post('/products', protect, authorize('vendor'), addVendorProduct);
 router.put('/products/:id', protect, authorize('vendor'), updateProduct);
 router.put('/products/:id/promo', protect, authorize('vendor'), updateProductPromotion);

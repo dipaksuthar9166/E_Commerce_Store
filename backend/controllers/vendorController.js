@@ -4,6 +4,7 @@ const Order = require('../models/Order');
 const Category = require('../models/Category');
 const { generateProductPrompt } = require('../utils/promptGenerator');
 const { generateAndStoreImage } = require('../services/aiImageService');
+const { lookupBarcode, cleanBarcode } = require('../services/barcodeLookupService');
 
 
 const COMMISSION_RATE = 0.1;
@@ -273,7 +274,58 @@ exports.getVendorProducts = async (req, res) => {
   }
 };
 
-// @desc    Add a new product to vendor's shop with AI Image Generation
+// @desc    Lookup product details by barcode (auto-fill for vendor)
+// @route   GET /api/vendor/products/lookup/:barcode
+// @access  Private (vendor)
+exports.lookupProductByBarcode = async (req, res) => {
+  try {
+    const barcode = cleanBarcode(req.params.barcode);
+    if (!barcode || barcode.length < 6) {
+      return res.status(400).json({ message: 'Enter a valid barcode (at least 6 digits)' });
+    }
+
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) {
+      return res.status(404).json({ message: 'No shop found for this vendor' });
+    }
+
+    // If this vendor already listed this barcode, tell the UI
+    const alreadyListed = await Product.findOne({ shopId: shop._id, barcode }).select('_id name stock price');
+
+    const info = await lookupBarcode(barcode);
+    if (!info) {
+      return res.status(404).json({
+        message: 'Product not found for this barcode. You can still add it manually.',
+        barcode,
+        found: false,
+      });
+    }
+
+    // Match / auto-suggest category for this shop
+    let matchedCategoryId = '';
+    if (info.category) {
+      const cat = await Category.findOne({
+        shopId: shop._id,
+        name: { $regex: `^${info.category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+      });
+      if (cat) matchedCategoryId = cat._id;
+    }
+
+    res.status(200).json({
+      found: true,
+      alreadyListed: alreadyListed
+        ? { _id: alreadyListed._id, name: alreadyListed.name, stock: alreadyListed.stock, price: alreadyListed.price }
+        : null,
+      ...info,
+      categoryId: matchedCategoryId || '',
+    });
+  } catch (error) {
+    console.error('Barcode lookup error:', error);
+    res.status(500).json({ message: 'Barcode lookup failed', error: error.message });
+  }
+};
+
+// @desc    Add a new product to vendor's shop (barcode image preferred, else AI)
 // @route   POST /api/vendor/products
 // @access  Private (vendor)
 exports.addVendorProduct = async (req, res) => {
@@ -283,9 +335,32 @@ exports.addVendorProduct = async (req, res) => {
       return res.status(404).json({ message: 'No shop found for this vendor' });
     }
 
-    const { name, price, stock, description, categoryId, categoryName, color } = req.body;
-    if (!name || !price) {
+    const {
+      name,
+      price,
+      stock,
+      description,
+      categoryId,
+      categoryName,
+      color,
+      barcode,
+      imagePath: providedImage,
+      skipAiImage,
+    } = req.body;
+
+    if (!name || price === undefined || price === null || price === '') {
       return res.status(400).json({ message: 'Name and price are required' });
+    }
+
+    const barcodeValue = cleanBarcode(barcode);
+    if (barcodeValue) {
+      const dup = await Product.findOne({ shopId: shop._id, barcode: barcodeValue });
+      if (dup) {
+        return res.status(400).json({
+          message: 'You already have a product with this barcode. Edit that product instead.',
+          productId: dup._id,
+        });
+      }
     }
 
     let resolvedCategory;
@@ -302,20 +377,32 @@ exports.addVendorProduct = async (req, res) => {
       }
     }
 
-    // --- AI Image Generation Step ---
-    const prompt = generateProductPrompt(name, color, resolvedCategory?.name);
-    const generatedImagePath = await generateAndStoreImage(prompt);
-    // --- End of AI Step ---
+    // Prefer barcode/catalog image; only call AI if no image provided
+    let finalImage = (providedImage && String(providedImage).trim()) || '';
+    if (!finalImage && !skipAiImage) {
+      try {
+        const prompt = generateProductPrompt(name, color, resolvedCategory?.name);
+        finalImage = await generateAndStoreImage(prompt);
+      } catch (imgErr) {
+        console.warn('AI image skipped:', imgErr.message);
+        finalImage = 'https://via.placeholder.com/512.png?text=No+Image';
+      }
+    }
+    if (!finalImage) {
+      finalImage = 'https://via.placeholder.com/512.png?text=No+Image';
+    }
 
     const product = await Product.create({
       shopId: shop._id,
       name,
-      price,
-      color, // Assuming 'color' field exists in Product model
-      stock: stock || 0,
+      price: Number(price),
+      color: color || '',
+      stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
       description: description || '',
+      barcode: barcodeValue || '',
       categoryId: resolvedCategory?._id,
-      imagePath: generatedImagePath, // Use the AI-generated image
+      category: resolvedCategory?.name || categoryName || '',
+      imagePath: finalImage,
     });
 
     const populatedProduct = await Product.findById(product._id).populate('categoryId', 'name');
@@ -324,6 +411,7 @@ exports.addVendorProduct = async (req, res) => {
       categoryName: populatedProduct.categoryId?.name || '',
     });
   } catch (error) {
+    console.error('Add product error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
