@@ -53,6 +53,11 @@ const Home = () => {
 
   return (
     <div className="animate-in fade-in duration-500 max-w-[1200px] mx-auto space-y-8 md:space-y-10">
+      {/* H1 for SEO — brand + primary keywords */}
+      <header className="sr-only">
+        <h1>MERSKO — Online store for grocery, daily essentials and local products</h1>
+      </header>
+
       {/* Category chips — real vendor categories only */}
       <section className="-mx-1">
         {catsLoading ? (

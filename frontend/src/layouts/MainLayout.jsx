@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import Sidebar from '../components/Sidebar';
+import { BrandMark } from '../components/BrandMark';
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -21,6 +22,41 @@ const MainLayout = () => {
           </div>
         </main>
       </div>
+
+      {/* SEO + brand footer (customer site) */}
+      <footer className="hidden md:block border-t border-slate-200 bg-white mt-auto">
+        <div className="max-w-[1600px] mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm">
+          <div>
+            <Link to="/" className="inline-flex items-center gap-2 mb-2">
+              <BrandMark size="sm" />
+              <span className="font-extrabold text-lg tracking-tight text-slate-900">MERSKO</span>
+            </Link>
+            <p className="text-slate-500 leading-relaxed max-w-xs">
+              MERSKO is your online store for grocery, daily essentials and local products —
+              with fast delivery and best prices.
+            </p>
+          </div>
+          <div>
+            <p className="font-bold text-slate-900 mb-2">Shop</p>
+            <ul className="space-y-1.5 text-slate-500">
+              <li><Link to="/products" className="hover:text-blue-600">All products</Link></li>
+              <li><Link to="/cart" className="hover:text-blue-600">Cart</Link></li>
+              <li><Link to="/orders" className="hover:text-blue-600">My orders</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-bold text-slate-900 mb-2">Account</p>
+            <ul className="space-y-1.5 text-slate-500">
+              <li><Link to="/login" className="hover:text-blue-600">Login</Link></li>
+              <li><Link to="/register" className="hover:text-blue-600">Create account / Sell on MERSKO</Link></li>
+              <li><Link to="/wishlist" className="hover:text-blue-600">Wishlist</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-slate-100 text-center text-xs text-slate-400 py-3">
+          © {new Date().getFullYear()} MERSKO — Online store · Explore · Buy · Deliver fast
+        </div>
+      </footer>
 
       <BottomNav />
     </div>

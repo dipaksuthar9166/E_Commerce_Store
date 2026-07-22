@@ -41,6 +41,10 @@ function isOriginAllowed(origin) {
   if (/^https:\/\/e-commerce-store[a-z0-9-]*\.vercel\.app$/.test(origin)) {
     return true;
   }
+  // Allow onlinekirana.vercel.app
+  if (/^https:\/\/onlinekirana[a-z0-9-]*\.vercel\.app$/.test(origin)) {
+    return true;
+  }
   return false;
 }
 
