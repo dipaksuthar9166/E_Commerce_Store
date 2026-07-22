@@ -128,7 +128,7 @@ const ProductListing = () => {
         <>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Showing products from all sellers · Flipkart-style catalogue</span>
+            <span>Showing products from all sellers · MERSKO catalogue</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
             {filtered.map((product, idx) => (

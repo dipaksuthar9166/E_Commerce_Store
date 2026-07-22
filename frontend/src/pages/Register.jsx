@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Lock, UserPlus, AlertCircle, Store, MapPin, Truck, ShoppingBag, Shield } from 'lucide-react';
+import { User, Mail, Lock, UserPlus, AlertCircle, Store, MapPin, Truck, ShoppingBag } from 'lucide-react';
+import { BrandMark } from '../components/BrandMark';
 
 const ROLES = [
   { key: 'customer', label: 'Customer', icon: ShoppingBag, color: 'blue', desc: 'Order from local shops' },
@@ -64,11 +65,12 @@ const Register = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-            <Shield className="w-7 h-7 text-white" />
-          </div>
+          <Link to="/" className="inline-flex items-center gap-2 mb-4">
+            <BrandMark />
+            <span className="font-extrabold text-2xl tracking-tight text-gray-900">MERSKO</span>
+          </Link>
           <h2 className="text-2xl font-extrabold text-gray-900">Create Account</h2>
-          <p className="text-gray-500 mt-1 text-sm">Join Mersko as a {selectedRole?.label}</p>
+          <p className="text-gray-500 mt-1 text-sm">Join MERSKO as a {selectedRole?.label}</p>
         </div>
 
         {/* Error */}

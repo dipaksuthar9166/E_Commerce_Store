@@ -15,6 +15,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import { Brand, BrandMark } from './BrandMark';
 
 const TopNav = ({ toggleSidebar }) => {
   const { getCartCount } = useCart();
@@ -39,17 +40,7 @@ const TopNav = ({ toggleSidebar }) => {
 
       {/* Desktop */}
       <div className="hidden md:flex items-center justify-between gap-6 px-6 py-3.5 max-w-[1600px] mx-auto">
-        <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-105 transition-transform">
-            <span className="text-white font-black text-lg">F</span>
-          </div>
-          <div>
-            <span className="font-extrabold text-xl tracking-tight text-slate-900">
-              Flip<span className="text-blue-600">Store</span>
-            </span>
-            <p className="text-[10px] text-slate-400 font-medium -mt-0.5">Explore · Buy · Deliver fast</p>
-          </div>
-        </Link>
+        <Brand to="/" />
 
         <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-blue-500 w-4 h-4" />
@@ -161,11 +152,9 @@ const TopNav = ({ toggleSidebar }) => {
               <Menu className="w-5 h-5" />
             </button>
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
-                <span className="text-white font-black text-sm">F</span>
-              </div>
-              <span className="font-extrabold text-lg text-slate-900">
-                Flip<span className="text-blue-600">Store</span>
+              <BrandMark size="sm" />
+              <span className="font-extrabold text-lg tracking-tight text-slate-900">
+                MERSKO
               </span>
             </Link>
           </div>

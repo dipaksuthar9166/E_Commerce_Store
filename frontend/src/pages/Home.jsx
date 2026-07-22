@@ -216,7 +216,7 @@ const Home = () => {
               Become a seller
             </p>
             <h3 className="text-white text-xl sm:text-2xl font-black tracking-tight">
-              Sell on FlipStore
+              Sell on MERSKO
             </h3>
             <p className="text-blue-100 text-sm mt-1 max-w-md">
               List products, manage orders live, and grow with millions of buyers.

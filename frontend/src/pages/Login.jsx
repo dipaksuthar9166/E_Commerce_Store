@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { BrandMark } from '../components/BrandMark';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -37,12 +38,7 @@ const Login = () => {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="flex items-center justify-center w-10 h-10 relative">
-              <div className="absolute inset-0 flex items-center justify-center font-black text-3xl tracking-tighter">
-                <span className="text-blue-500">M</span>
-                <span className="text-orange-500 absolute ml-1 -mt-0.5">/</span>
-              </div>
-            </div>
+            <BrandMark size="lg" />
             <span className="font-extrabold text-2xl tracking-tight text-gray-900">MERSKO</span>
           </Link>
           <h1 className="text-xl font-bold text-gray-900">Welcome back</h1>
