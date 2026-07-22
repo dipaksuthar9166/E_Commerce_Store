@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">online_shop</string>
+    <string name="title_activity_main">online_shop</string>
+    <string name="package_name">com.example.online_shop</string>
+    <string name="custom_url_scheme">com.example.online_shop</string>
+</resources>

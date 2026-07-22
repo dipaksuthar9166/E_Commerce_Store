@@ -21,8 +21,8 @@ const server = http.createServer(app);
 // Setup Socket.IO with CORS for local network & production
 const io = new Server(server, {
   cors: {
-    origin: '*', // Allows connection from mobile/other devices
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: process.env.FRONTEND_URL, // Allow only the frontend URL
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true
   },
 });
@@ -48,8 +48,9 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: '*', // Mobile browser requests allow karne ke liye
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: process.env.FRONTEND_URL, // Allow only the frontend URL from .env
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 app.use(express.json());

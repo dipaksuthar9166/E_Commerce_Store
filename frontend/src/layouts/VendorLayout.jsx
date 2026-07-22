@@ -122,10 +122,13 @@ const SidebarContent = ({
           <button
             type="button"
             onClick={onToggleOnline}
-            className={`relative w-9 h-5 rounded-full transition-colors duration-300 focus:outline-none ${isOnline ? 'bg-blue-500' : 'bg-gray-300'}`}
-            aria-label={isOnline ? 'Set shop offline' : 'Set shop online'}
+            className={`text-xs font-semibold py-1 px-2.5 rounded-lg transition-colors ${
+              isOnline
+                ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                : 'bg-green-50 text-green-600 hover:bg-green-100'
+            }`}
           >
-            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300 ${isOnline ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            {isOnline ? 'Go Offline' : 'Go Online'}
           </button>
         )}
       </div>
