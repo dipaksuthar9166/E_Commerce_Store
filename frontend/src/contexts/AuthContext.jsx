@@ -18,6 +18,17 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  const getErrorMessage = (error, fallback) => {
+    if (error.response?.data?.message) return error.response.data.message;
+    if (error.response?.status === 404) {
+      return 'API not found. Backend URL may be missing /api — check VITE_API_URL.';
+    }
+    if (error.code === 'ERR_NETWORK' || !error.response) {
+      return 'Cannot reach server. Check backend is running and API URL is correct.';
+    }
+    return fallback;
+  };
+
   const login = async (email, password) => {
     try {
       const { data } = await api.post('/auth/login', { email, password });
@@ -25,7 +36,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('userInfo', JSON.stringify(data));
       return { success: true, user: data };
     } catch (error) {
-      return { success: false, error: error.response?.data?.message || 'Login failed' };
+      return { success: false, error: getErrorMessage(error, 'Login failed') };
     }
   };
 
@@ -36,7 +47,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('userInfo', JSON.stringify(data));
       return { success: true, user: data };
     } catch (error) {
-      return { success: false, error: error.response?.data?.message || 'Registration failed' };
+      return { success: false, error: getErrorMessage(error, 'Registration failed') };
     }
   };
 
