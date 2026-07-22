@@ -15,7 +15,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 //    Uncomment and configure the service you want to use.
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const s3Client = new S3Client({
-  region: process.env.AWS_S3_REGION,
+  // Support both naming conventions used in .env
+  region: process.env.AWS_S3_REGION || process.env.AWS_REGION || 'ap-south-1',
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -74,7 +75,7 @@ const generateAndStoreImage = async (prompt) => {
     // EXAMPLE FOR AWS S3 UPLOAD:
     // 2. Define S3 upload parameters
     const s3Params = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Bucket: process.env.AWS_S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME,
       Key: `products/${fileName}`,
       Body: imageBuffer,
       ContentType: contentType,
@@ -85,7 +86,8 @@ const generateAndStoreImage = async (prompt) => {
     await s3Client.send(new PutObjectCommand(s3Params));
 
     // 4. Construct the permanent URL
-    const permanentUrl = `https://${s3Params.Bucket}.s3.${process.env.AWS_S3_REGION}.amazonaws.com/${s3Params.Key}`;
+    const s3Region = process.env.AWS_S3_REGION || process.env.AWS_REGION || 'ap-south-1';
+    const permanentUrl = `https://${s3Params.Bucket}.s3.${s3Region}.amazonaws.com/${s3Params.Key}`;
     console.log(`Successfully uploaded image to S3. Permanent URL: ${permanentUrl}`);
     
     return permanentUrl;

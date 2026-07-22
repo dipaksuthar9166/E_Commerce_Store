@@ -7,6 +7,15 @@ const SocketContext = createContext();
 
 export const useSocket = () => useContext(SocketContext);
 
+/** Derive Socket.IO origin from env or from VITE_API_URL (strip /api). */
+function getSocketUrl() {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL.replace(/\/+$/, '');
+  }
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return apiUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '') || 'http://localhost:5000';
+}
+
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
@@ -22,13 +31,13 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const newSocket = io('http://192.168.1.9:5000', {
-      transports: ['websocket', 'polling']
+    const newSocket = io(getSocketUrl(), {
+      transports: ['websocket', 'polling'],
     });
 
     setSocket(newSocket);
 
-    // If user is a vendor, we should fetch their shop ID to join the room
+    // Vendor: join shop room for live order alerts
     if (user.role === 'vendor') {
       const fetchShopAndJoinRoom = async () => {
         try {
@@ -44,10 +53,10 @@ export const SocketProvider = ({ children }) => {
       fetchShopAndJoinRoom();
     }
 
-    // Cleanup on unmount or user change
     return () => {
       newSocket.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reconnect only when user changes
   }, [user]);
 
   return (

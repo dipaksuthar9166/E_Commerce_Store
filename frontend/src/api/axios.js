@@ -1,17 +1,27 @@
 import axios from 'axios';
 
+// Prefer env; always ensure base ends with /api so routes match backend mounts
+const rawBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const baseURL = rawBase.replace(/\/+$/, '').endsWith('/api')
+  ? rawBase.replace(/\/+$/, '')
+  : `${rawBase.replace(/\/+$/, '')}/api`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL,
 });
 
-// Add a request interceptor to attach token
+// Attach JWT from localStorage on every request
 api.interceptors.request.use(
   (config) => {
     const userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
-      const { token } = JSON.parse(userInfo);
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      try {
+        const { token } = JSON.parse(userInfo);
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch {
+        // ignore corrupt localStorage
       }
     }
     return config;
