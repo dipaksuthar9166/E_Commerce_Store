@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (html.dark) — required for Tailwind v4 dark: utilities */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Design tokens ───────────────────────────────────────────── */
+@theme {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-soft: #eff6ff;
+  --color-accent: #f97316;
+  --color-accent-hover: #ea580c;
+  --color-background: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --shadow-card: 0 1px 3px rgb(15 23 42 / 0.06), 0 8px 24px rgb(15 23 42 / 0.04);
+  --shadow-card-hover: 0 8px 28px rgb(15 23 42 / 0.12);
+  --radius-card: 1rem;
+}
+
+/* Semantic surfaces that flip with theme */
+:root {
+  --app-bg: #f3f4f6;
+  --app-surface: #ffffff;
+  --app-surface-2: #f9fafb;
+  --app-border: #e5e7eb;
+  --app-ink: #0f172a;
+  --app-muted: #6b7280;
+  --app-muted-2: #9ca3af;
+  color-scheme: light;
+}
+
+html.dark {
+  --color-background: #0b1220;
+  --color-surface: #111827;
+  --color-primary-soft: #1e293b;
+  --color-ink: #e2e8f0;
+  --color-muted: #94a3b8;
+  --app-bg: #0b1220;
+  --app-surface: #111827;
+  --app-surface-2: #0f172a;
+  --app-border: #1f2937;
+  --app-ink: #e2e8f0;
+  --app-muted: #94a3b8;
+  --app-muted-2: #64748b;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.35), 0 8px 24px rgb(0 0 0 / 0.25);
+  color-scheme: dark;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-ink font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgb(37 99 235 / 0.06), transparent);
+  }
+
+  html.dark body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgb(37 99 235 / 0.12), transparent);
+  }
+
+  ::selection {
+    background: rgb(37 99 235 / 0.2);
+  }
+
+  /* Hide every scrollbar globally (scroll still works) */
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE / legacy Edge */
+  }
+
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+    width: 0;
+    height: 0;
+  }
+}
+
+/*
+  Global dark remaps so existing bg-white / text-gray-* pages
+  (vendor, delivery, customer) actually flip with the theme toggle.
+*/
+html.dark .bg-white {
+  background-color: var(--app-surface) !important;
+}
+html.dark .bg-white\/90,
+html.dark .bg-white\/95 {
+  background-color: rgb(17 24 39 / 0.95) !important;
+}
+html.dark .bg-gray-50,
+html.dark .bg-gray-50\/50,
+html.dark .bg-gray-50\/60,
+html.dark .bg-gray-50\/80 {
+  background-color: var(--app-surface-2) !important;
+}
+html.dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+html.dark .bg-background {
+  background-color: var(--app-bg) !important;
+}
+html.dark .bg-blue-50,
+html.dark .bg-blue-50\/80 {
+  background-color: rgb(30 58 138 / 0.25) !important;
+}
+html.dark .bg-blue-100 {
+  background-color: rgb(30 58 138 / 0.4) !important;
+}
+html.dark .bg-indigo-50 {
+  background-color: rgb(49 46 129 / 0.3) !important;
+}
+html.dark .bg-sky-50 {
+  background-color: rgb(12 74 110 / 0.3) !important;
+}
+html.dark .bg-orange-50 {
+  background-color: rgb(154 52 18 / 0.25) !important;
+}
+html.dark .bg-green-50,
+html.dark .bg-emerald-50 {
+  background-color: rgb(6 78 59 / 0.3) !important;
+}
+html.dark .bg-red-50 {
+  background-color: rgb(127 29 29 / 0.3) !important;
+}
+html.dark .bg-amber-50 {
+  background-color: rgb(120 53 15 / 0.3) !important;
+}
+html.dark .bg-violet-50 {
+  background-color: rgb(76 29 149 / 0.3) !important;
+}
+
+html.dark .text-gray-900,
+html.dark .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+html.dark .text-gray-800,
+html.dark .text-slate-800 {
+  color: #e2e8f0 !important;
+}
+html.dark .text-gray-700,
+html.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+html.dark .text-gray-600,
+html.dark .text-slate-600 {
+  color: #94a3b8 !important;
+}
+html.dark .text-gray-500,
+html.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+html.dark .text-gray-400,
+html.dark .text-slate-400 {
+  color: #64748b !important;
+}
+html.dark .text-gray-300 {
+  color: #475569 !important;
+}
+html.dark .text-emerald-600 {
+  color: #34d399 !important;
+}
+html.dark .text-green-700 {
+  color: #4ade80 !important;
+}
+html.dark .text-red-600 {
+  color: #f87171 !important;
+}
+html.dark .text-amber-600 {
+  color: #fbbf24 !important;
+}
+
+html.dark .border-gray-50,
+html.dark .border-gray-100,
+html.dark .border-slate-100 {
+  border-color: var(--app-border) !important;
+}
+html.dark .border-gray-200,
+html.dark .border-slate-200,
+html.dark .border-slate-200\/80 {
+  border-color: #334155 !important;
+}
+html.dark .border-dashed.border-gray-200 {
+  border-color: #334155 !important;
+}
+
+html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--app-border) !important;
+}
+
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-50\/50:hover,
+html.dark .hover\:bg-gray-50\/60:hover,
+html.dark .hover\:bg-slate-50:hover {
+  background-color: #1f2937 !important;
+}
+html.dark .hover\:bg-gray-100:hover,
+html.dark .hover\:bg-slate-100:hover {
+  background-color: #374151 !important;
+}
+
+/* Recharts tooltip / legend in dark mode */
+html.dark .recharts-default-tooltip {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html.dark .recharts-legend-item-text {
+  color: #94a3b8 !important;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  color: #e2e8f0;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b;
+}
+
+/* ── Utilities ───────────────────────────────────────────────── */
+@layer utilities {
+  .card-surface {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-hover {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
