@@ -120,9 +120,16 @@ const Cart = () => {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <p className="text-base font-bold text-slate-900 mt-1">
-                    ₹{Number(item.price).toLocaleString('en-IN')}
-                  </p>
+                  <div className="mt-1">
+                    <span className="text-base font-bold text-slate-900">
+                      ₹{Number(item.price).toLocaleString('en-IN')}
+                    </span>
+                    {item.product.discount_percent > 0 && item.product.price > item.price && (
+                      <span className="text-xs text-gray-400 line-through ml-2">
+                        ₹{Number(item.product.price).toLocaleString('en-IN')}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-3 mt-auto pt-2">
                     <div className="flex items-center bg-slate-100 rounded-xl border border-slate-200">

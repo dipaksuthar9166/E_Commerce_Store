@@ -56,6 +56,7 @@ const productSchema = new mongoose.Schema({
     name: { type: String, required: true },
     rating: { type: Number, required: true },
     comment: { type: String, required: true },
+    vendorReply: { type: String },
     createdAt: { type: Date, default: Date.now }
   }],
   averageRating: {

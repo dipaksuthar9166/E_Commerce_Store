@@ -13,6 +13,7 @@ import {
   Users,
   Wallet,
   Activity,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   BarChart,
@@ -209,6 +210,7 @@ const VendorDashboard = () => {
   const [chartData, setChartData] = useState(emptyHourly());
   const [weekTrend, setWeekTrend] = useState([]);
   const [statusBreakdown, setStatusBreakdown] = useState([]);
+  const [lowStock, setLowStock] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const { socket } = useSocket();
@@ -224,6 +226,7 @@ const VendorDashboard = () => {
       setChartData(data.chartData?.length ? data.chartData : emptyHourly());
       setWeekTrend(data.weekTrend || []);
       setStatusBreakdown(data.statusBreakdown || []);
+      setLowStock(data.lowStockProducts || []);
 
       if (data?.shop?.isOnline !== undefined) {
         setIsOnline(!!data.shop.isOnline);
@@ -353,6 +356,30 @@ const VendorDashboard = () => {
           <Zap size={16} />
         </button>
       </div>
+
+      {/* Low Stock Alerts */}
+      {lowStock.length > 0 && (
+        <div className="bg-red-50 border border-red-100 rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-start gap-4">
+          <div className="bg-red-100 p-2 rounded-lg shrink-0 w-fit">
+            <AlertTriangle className="text-red-600 w-6 h-6" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-red-800 font-bold mb-1">Low Stock Alert ({lowStock.length})</h3>
+            <p className="text-red-600 text-sm mb-3">Some of your products are running out of stock. Please restock them soon to avoid losing sales.</p>
+            <div className="flex flex-wrap gap-2">
+              {lowStock.map((prod) => (
+                <div key={prod._id} className="bg-white border border-red-200 rounded-lg px-3 py-1.5 flex items-center gap-2 text-sm">
+                  <span className="font-semibold text-gray-800 truncate max-w-[120px]">{prod.name}</span>
+                  <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-bold">{prod.stock} left</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <Link to="/vendor/products" className="shrink-0 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition">
+            Manage Inventory
+          </Link>
+        </div>
+      )}
 
       {/* Stats — compact 2-row grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">

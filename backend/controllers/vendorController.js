@@ -146,6 +146,12 @@ exports.getVendorDashboard = async (req, res) => {
       }))
     );
 
+    // Fetch low stock products (stock < 5)
+    const lowStockProducts = await Product.find({ shopId: shop._id, stock: { $lt: 5 } })
+      .select('name stock imagePath')
+      .limit(10)
+      .lean();
+
     res.status(200).json({
       shop,
       stats: {
@@ -163,6 +169,7 @@ exports.getVendorDashboard = async (req, res) => {
       chartData,
       weekTrend,
       statusBreakdown: statusBreakdown.filter((s) => s.count > 0),
+      lowStockProducts,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -744,5 +751,97 @@ exports.bulkUploadProducts = async (req, res) => {
   } catch (error) {
     console.error('Bulk upload error:', error);
     res.status(500).json({ message: 'Server error during bulk upload', error: error.message });
+  }
+};
+
+// @desc    Get all reviews for all products of this vendor
+// @route   GET /api/vendor/reviews
+// @access  Private/Vendor
+exports.getVendorReviews = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+
+    // Find products for this shop that have at least one review
+    const products = await Product.find({ shopId: shop._id, 'reviews.0': { $exists: true } })
+      .select('name imagePath reviews')
+      .sort({ 'reviews.createdAt': -1 });
+
+    let allReviews = [];
+    products.forEach(product => {
+      product.reviews.forEach(review => {
+        allReviews.push({
+          productId: product._id,
+          productName: product.name,
+          productImage: product.imagePath,
+          reviewId: review._id,
+          userName: review.name,
+          rating: review.rating,
+          comment: review.comment,
+          vendorReply: review.vendorReply || '',
+          createdAt: review.createdAt
+        });
+      });
+    });
+
+    // Sort all reviews by date descending
+    allReviews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json(allReviews);
+  } catch (error) {
+    console.error('Fetch reviews error:', error);
+    res.status(500).json({ message: 'Server error fetching reviews' });
+  }
+};
+
+// @desc    Reply to a product review
+// @route   POST /api/vendor/reviews/:productId/:reviewId/reply
+// @access  Private/Vendor
+exports.replyToReview = async (req, res) => {
+  try {
+    const { productId, reviewId } = req.params;
+    const { reply } = req.body;
+
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+
+    const product = await Product.findOne({ _id: productId, shopId: shop._id });
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    const review = product.reviews.id(reviewId);
+    if (!review) return res.status(404).json({ message: 'Review not found' });
+
+    review.vendorReply = reply;
+    await product.save();
+
+    res.status(200).json({ message: 'Reply added successfully', review });
+  } catch (error) {
+    console.error('Reply review error:', error);
+    res.status(500).json({ message: 'Server error replying to review' });
+  }
+};
+
+// @desc    Apply bulk discount to products
+// @route   POST /api/vendor/products/bulk-discount
+// @access  Private/Vendor
+exports.applyBulkDiscount = async (req, res) => {
+  try {
+    const { productIds, discountPercent, promoTag } = req.body;
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ message: 'No products selected' });
+    }
+
+    await Product.updateMany(
+      { _id: { $in: productIds }, shopId: shop._id },
+      { $set: { discount_percent: Number(discountPercent) || 0, promo_tag: promoTag || '' } }
+    );
+
+    res.status(200).json({ message: `Successfully updated ${productIds.length} products.` });
+  } catch (error) {
+    console.error('Bulk discount error:', error);
+    res.status(500).json({ message: 'Server error applying discounts' });
   }
 };

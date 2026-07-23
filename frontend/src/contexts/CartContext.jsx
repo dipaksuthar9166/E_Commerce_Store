@@ -39,19 +39,24 @@ export const CartProvider = ({ children }) => {
       (rawShop && typeof rawShop === 'object' ? rawShop.shopName : '') ||
       '';
 
+    // Calculate effective price taking discount into account
+    const effectivePrice = product.discount_percent > 0 
+      ? Math.round(product.price * (1 - product.discount_percent / 100)) 
+      : product.price;
+
     setCartItems(prev => {
       const existing = prev.find(item => item.product.id === product.id || item.product._id === product._id);
       if (existing) {
         return prev.map(item =>
           (item.product.id === product.id || item.product._id === product._id)
-            ? { ...item, quantity: item.quantity + 1, selected: true } // Also mark as selected if re-added
+            ? { ...item, quantity: item.quantity + 1, price: effectivePrice, selected: true } // Update price just in case it changed
             : item
         );
       }
       return [...prev, {
         product: { ...product, shopId, shopName },
         quantity: 1,
-        price: product.price,
+        price: effectivePrice,
         shopId,
         shopName,
         selected: true, // Selected by default

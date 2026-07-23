@@ -195,3 +195,117 @@ exports.getAdminFinances = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+const Category = require('../models/Category');
+
+// @desc    Get all global categories
+// @route   GET /api/admin/categories
+// @access  Private (admin)
+exports.getGlobalCategories = async (req, res) => {
+  try {
+    const categories = await Category.find({ isGlobal: true }).sort({ name: 1 });
+    res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Create a global category
+// @route   POST /api/admin/categories
+// @access  Private (admin)
+exports.createGlobalCategory = async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ message: 'Category name is required' });
+
+    const category = await Category.create({ name, isGlobal: true });
+    res.status(201).json(category);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Update a global category
+// @route   PUT /api/admin/categories/:id
+// @access  Private (admin)
+exports.updateGlobalCategory = async (req, res) => {
+  try {
+    const { name } = req.body;
+    const category = await Category.findOneAndUpdate(
+      { _id: req.params.id, isGlobal: true },
+      { name },
+      { new: true }
+    );
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    res.status(200).json(category);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Delete a global category
+// @route   DELETE /api/admin/categories/:id
+// @access  Private (admin)
+exports.deleteGlobalCategory = async (req, res) => {
+  try {
+    const category = await Category.findOneAndDelete({ _id: req.params.id, isGlobal: true });
+    if (!category) return res.status(404).json({ message: 'Category not found' });
+    res.status(200).json({ message: 'Category deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get all orders across all shops
+// @route   GET /api/admin/orders
+// @access  Private (admin)
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate('userId', 'name email')
+      .populate('shopId', 'shopName')
+      .populate('deliveryBoyId', 'name')
+      .sort({ createdAt: -1 });
+      
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+const Config = require('../models/Config');
+
+// @desc    Get system configuration
+// @route   GET /api/admin/config
+// @access  Private (admin)
+exports.getConfig = async (req, res) => {
+  try {
+    let config = await Config.findOne();
+    if (!config) {
+      config = await Config.create({ commissionRate: 10 });
+    }
+    res.status(200).json(config);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Update system configuration
+// @route   PUT /api/admin/config
+// @access  Private (admin)
+exports.updateConfig = async (req, res) => {
+  try {
+    const { commissionRate, banners } = req.body;
+    let config = await Config.findOne();
+    if (!config) {
+      config = await Config.create({ commissionRate, banners });
+    } else {
+      if (commissionRate !== undefined) config.commissionRate = commissionRate;
+      if (banners !== undefined) config.banners = banners;
+      await config.save();
+    }
+    res.status(200).json(config);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

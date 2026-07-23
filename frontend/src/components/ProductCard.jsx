@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Heart, ShoppingCart, Star, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import { getProductImage } from '../utils/productImage';
+import api from '../api/axios';
 
 const bgTints = [
   'from-blue-50 to-indigo-50',
@@ -13,7 +15,7 @@ const bgTints = [
   'from-sky-50 to-cyan-50',
 ];
 
-function toggleWishlist(product) {
+function toggleWishlistLocal(product) {
   const list = JSON.parse(localStorage.getItem('wishlist') || '[]');
   const exists = list.some((item) => item._id === product._id);
   let next;
@@ -27,38 +29,51 @@ function toggleWishlist(product) {
   return !exists;
 }
 
-function isInWishlist(id) {
-  try {
-    const list = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    return list.some((item) => item._id === id);
-  } catch {
-    return false;
-  }
-}
-
 const ProductCard = ({ product, index = 0 }) => {
   const { addToCart } = useCart();
+  const { user } = useAuth();
   const [wishlisted, setWishlisted] = useState(false);
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    setWishlisted(isInWishlist(product._id));
-  }, [product._id]);
+    const checkWishlist = async () => {
+      if (user) {
+        try {
+          const { data } = await api.get('/users/wishlist');
+          setWishlisted(data.some(item => (item._id || item) === product._id));
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        const list = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        setWishlisted(list.some(item => item._id === product._id));
+      }
+    };
+    checkWishlist();
+  }, [product._id, user]);
 
-  const discount =
-    product.discount_percent || product.discount || 0;
-  const price = Number(product.price) || 0;
-  const original =
-    discount > 0 ? Math.round(price / (1 - discount / 100)) : product.originalPrice;
+  const discount = product.discount_percent || product.discount || 0;
+  const original = Number(product.price) || 0;
+  const price = discount > 0 ? Math.round(original * (1 - discount / 100)) : original;
   const tint = bgTints[index % bgTints.length];
   const image = imgError ? getProductImage({ name: product.name }) : getProductImage(product);
   const shopName = product.shopId?.shopName || product.shopName || '';
 
-  const handleWishlist = (e) => {
+  const handleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setWishlisted(toggleWishlist(product));
+    if (user) {
+      try {
+        await api.post(`/users/wishlist/${product._id}`);
+        setWishlisted(!wishlisted);
+        window.dispatchEvent(new Event('wishlist-updated'));
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      setWishlisted(toggleWishlistLocal(product));
+    }
   };
 
   const handleAdd = (e) => {

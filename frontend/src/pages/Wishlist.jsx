@@ -4,15 +4,28 @@ import { Trash2, ShoppingCart, Heart } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { getProductImage } from '../utils/productImage';
 
+import api from '../api/axios';
+import { useAuth } from '../contexts/AuthContext';
+
 const Wishlist = () => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const { addToCart } = useCart();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
 
-  const load = () => {
+  const load = async () => {
+    setLoading(true);
     try {
-      setWishlistItems(JSON.parse(localStorage.getItem('wishlist') || '[]'));
+      if (user) {
+        const { data } = await api.get('/users/wishlist');
+        setWishlistItems(data);
+      } else {
+        setWishlistItems(JSON.parse(localStorage.getItem('wishlist') || '[]'));
+      }
     } catch {
       setWishlistItems([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -20,13 +33,23 @@ const Wishlist = () => {
     load();
     window.addEventListener('wishlist-updated', load);
     return () => window.removeEventListener('wishlist-updated', load);
-  }, []);
+  }, [user]);
 
-  const removeFromWishlist = (id) => {
-    const updated = wishlistItems.filter((item) => item._id !== id);
-    setWishlistItems(updated);
-    localStorage.setItem('wishlist', JSON.stringify(updated));
-    window.dispatchEvent(new Event('wishlist-updated'));
+  const removeFromWishlist = async (id) => {
+    if (user) {
+      try {
+        await api.post(`/users/wishlist/${id}`);
+        setWishlistItems(prev => prev.filter(item => item._id !== id));
+        window.dispatchEvent(new Event('wishlist-updated'));
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      const updated = wishlistItems.filter((item) => item._id !== id);
+      setWishlistItems(updated);
+      localStorage.setItem('wishlist', JSON.stringify(updated));
+      window.dispatchEvent(new Event('wishlist-updated'));
+    }
   };
 
   const moveToCart = (product) => {

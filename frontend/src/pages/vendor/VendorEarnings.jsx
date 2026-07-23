@@ -61,6 +61,47 @@ const VendorEarnings = () => {
     </div>
   );
 
+  const handleExportCSV = () => {
+    if (deliveredOrders.length === 0) return;
+    
+    // Create CSV header
+    const headers = ['Order ID', 'Customer Name', 'Customer Email', 'Date', 'Gross Sale (INR)', 'Commission (INR)', 'Net Earning (INR)', 'Status'];
+    
+    // Create CSV rows
+    const rows = deliveredOrders.map(order => {
+      const gross = order.totalAmount || 0;
+      const commission = calculateCommission(gross);
+      const net = calculateNetEarnings(gross);
+      return [
+        order._id,
+        order.userId?.name || 'Customer',
+        order.userId?.email || 'N/A',
+        new Date(order.updatedAt).toLocaleDateString('en-IN'),
+        gross,
+        commission,
+        net,
+        'Delivered'
+      ];
+    });
+    
+    // Combine header and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(e => e.join(','))
+    ].join('\n');
+    
+    // Trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Earnings_Ledger_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
       {/* Header */}
@@ -131,7 +172,7 @@ const VendorEarnings = () => {
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <Filter size={13} /> Filter
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
+            <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
               <Download size={13} /> Export
             </button>
           </div>

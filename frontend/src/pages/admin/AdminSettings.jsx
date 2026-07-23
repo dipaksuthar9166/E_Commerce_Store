@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Shield, Percent, Truck, Save, Info, Image } from 'lucide-react';
+import api from '../../api/axios';
 
 const AdminSettings = () => {
   const [commission, setCommission] = useState(10);
@@ -12,10 +13,40 @@ const AdminSettings = () => {
   ];
   const [bannersJson, setBannersJson] = useState(JSON.stringify(defaultBanners, null, 2));
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const { data } = await api.get('/admin/config');
+        if (data) {
+          if (data.commissionRate) setCommission(data.commissionRate);
+          if (data.banners) setBannersJson(JSON.stringify(data.banners, null, 2));
+        }
+      } catch (err) {
+        console.error('Failed to fetch config', err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  const handleSave = async (e) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    try {
+      let parsedBanners = [];
+      try {
+        parsedBanners = JSON.parse(bannersJson);
+      } catch (e) {
+        alert('Invalid JSON in Banners field');
+        return;
+      }
+      await api.put('/admin/config', { 
+        commissionRate: Number(commission),
+        banners: parsedBanners
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      alert('Failed to save config');
+    }
   };
 
   return (

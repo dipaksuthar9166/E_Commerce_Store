@@ -10,5 +10,12 @@ router.put('/shops/:id/status', adminController.updateShopStatus);
 router.get('/users', adminController.getAllUsers);
 router.put('/users/:id/status', adminController.updateUserStatus);
 router.get('/finances', adminController.getAdminFinances);
+router.get('/orders', adminController.getAllOrders);
+router.get('/categories', adminController.getGlobalCategories);
+router.post('/categories', adminController.createGlobalCategory);
+router.put('/categories/:id', adminController.updateGlobalCategory);
+router.delete('/categories/:id', adminController.deleteGlobalCategory);
+router.get('/config', adminController.getConfig);
+router.put('/config', adminController.updateConfig);
 
 module.exports = router;

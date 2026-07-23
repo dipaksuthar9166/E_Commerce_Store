@@ -16,6 +16,9 @@ const {
   updateOrderStatus,
   getVendorEarnings,
   bulkUploadProducts,
+  getVendorReviews,
+  replyToReview,
+  applyBulkDiscount,
 } = require('../controllers/vendorController');
 const { getTodayActivityStats } = require('../controllers/vendorStatsController');
 
@@ -29,6 +32,7 @@ router.get('/products', protect, authorize('vendor'), getVendorProducts);
 router.get('/products/lookup/:barcode', protect, authorize('vendor'), lookupProductByBarcode);
 // Bulk upload route (must be before /products/:id)
 router.post('/products/bulk', protect, authorize('vendor'), upload.fields([{ name: 'excel', maxCount: 1 }, { name: 'images', maxCount: 50 }]), bulkUploadProducts);
+router.post('/products/bulk-discount', protect, authorize('vendor'), applyBulkDiscount);
 router.post('/products', protect, authorize('vendor'), addVendorProduct);
 router.put('/products/:id', protect, authorize('vendor'), updateProduct);
 router.put('/products/:id/promo', protect, authorize('vendor'), updateProductPromotion);
@@ -36,5 +40,7 @@ router.get('/orders', protect, authorize('vendor'), getVendorOrders);
 router.put('/orders/:id/status', protect, authorize('vendor'), updateOrderStatus);
 router.get('/earnings', protect, authorize('vendor'), getVendorEarnings);
 router.get('/stats/today-activity', protect, authorize('vendor'), getTodayActivityStats);
+router.get('/reviews', protect, authorize('vendor'), getVendorReviews);
+router.post('/reviews/:productId/:reviewId/reply', protect, authorize('vendor'), replyToReview);
 
 module.exports = router;

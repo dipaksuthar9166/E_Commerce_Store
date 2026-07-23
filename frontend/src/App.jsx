@@ -28,6 +28,8 @@ import VendorSettings from './pages/vendor/VendorSettings';
 import VendorInventory from './pages/vendor/VendorInventory';
 import VendorCustomers from './pages/vendor/VendorCustomers';
 import VendorCoupons from './pages/vendor/VendorCoupons';
+import VendorPromotions from './pages/vendor/VendorPromotions';
+import VendorReviews from './pages/vendor/VendorReviews';
 import VendorSupport from './pages/vendor/VendorSupport';
 import VendorBanners from './pages/vendor/VendorBanners';
 
@@ -37,6 +39,8 @@ import AdminShops from './pages/admin/AdminShops';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminFinances from './pages/admin/AdminFinances';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminCategories from './pages/admin/AdminCategories';
+import AdminOrders from './pages/admin/AdminOrders';
 
 // Delivery Portal Pages
 import DeliveryDashboard from './pages/delivery/DeliveryDashboard';
@@ -94,9 +98,11 @@ function App() {
                 <Route path="categories" element={<VendorCategories />} />
                 <Route path="inventory" element={<VendorInventory />} />
                 <Route path="banners" element={<VendorBanners />} />
+                <Route path="promotions" element={<VendorPromotions />} />
                 <Route path="coupons" element={<VendorCoupons />} />
                 <Route path="orders" element={<VendorOrders />} />
                 <Route path="customers" element={<VendorCustomers />} />
+                <Route path="reviews" element={<VendorReviews />} />
                 <Route path="earnings" element={<VendorEarnings />} />
                 <Route path="settings" element={<VendorSettings />} />
                 <Route path="support" element={<VendorSupport />} />
@@ -123,6 +129,8 @@ function App() {
                 <Route index element={<AdminDashboard />} />
                 <Route path="shops" element={<AdminShops />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="categories" element={<AdminCategories />} />
                 <Route path="finances" element={<AdminFinances />} />
                 <Route path="settings" element={<AdminSettings />} />
               </Route>

@@ -73,3 +73,26 @@ exports.getProductById = asyncHandler(async (req, res) => {
 
 // Backwards-compatible alias
 exports.getAllProducts = exports.getProducts;
+
+/**
+ * @desc    Get related products by category
+ * @route   GET /api/products/:id/related
+ * @access  Public
+ */
+exports.getRelatedProducts = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
+
+  const related = await Product.find({
+    categoryId: product.categoryId,
+    _id: { $ne: product._id }
+  })
+    .populate('shopId', 'shopName isOnline isActive')
+    .limit(8)
+    .sort({ createdAt: -1 });
+
+  res.status(200).json(related);
+});

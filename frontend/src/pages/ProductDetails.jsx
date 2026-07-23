@@ -4,6 +4,7 @@ import { Star, ShoppingCart, Heart, Shield, RotateCcw, Truck, Share2 } from 'luc
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axios';
+import ProductCard from '../components/ProductCard';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -17,6 +18,7 @@ const ProductDetails = () => {
   const [reviewText, setReviewText] = useState('');
   const [rating, setRating] = useState(5);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState([]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -29,6 +31,14 @@ const ProductDetails = () => {
           reviews: data.reviews || [],
         };
         setProduct(productData);
+        
+        // Fetch related products
+        try {
+          const relatedRes = await api.get(`/products/${id}/related`);
+          setRelatedProducts(relatedRes.data || []);
+        } catch (err) {
+          console.error('Error fetching related products:', err);
+        }
       } catch (err) {
         console.error('Error fetching product:', err);
         setProduct(null);
@@ -38,11 +48,22 @@ const ProductDetails = () => {
     };
 
     fetchProduct();
+    const fetchWishlist = async () => {
+      if (user) {
+        try {
+          const { data } = await api.get('/users/wishlist');
+          setIsWishlisted(data.some(item => (item._id || item) === id));
+        } catch (err) {
+          console.error('Failed to fetch wishlist', err);
+        }
+      } else {
+        const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        setIsWishlisted(wishlist.some(item => item._id === id));
+      }
+    };
     
-    // Check if in wishlist from localStorage for now
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    setIsWishlisted(wishlist.some(item => item._id === id));
-  }, [id]);
+    fetchWishlist();
+  }, [id, user]);
 
   const handleAddToCart = () => {
     if (product) {
@@ -61,35 +82,58 @@ const ProductDetails = () => {
     }
   };
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = async () => {
     if (!product) return;
-    let wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    if (isWishlisted) {
-      wishlist = wishlist.filter(item => item._id !== product._id);
+    
+    if (user) {
+      try {
+        await api.post(`/users/wishlist/${product._id}`);
+        setIsWishlisted(!isWishlisted);
+      } catch (err) {
+        console.error('Failed to toggle wishlist', err);
+      }
     } else {
-      wishlist.push(product);
+      let wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      if (isWishlisted) {
+        wishlist = wishlist.filter(item => item._id !== product._id);
+      } else {
+        wishlist.push(product);
+      }
+      localStorage.setItem('wishlist', JSON.stringify(wishlist));
+      setIsWishlisted(!isWishlisted);
     }
-    localStorage.setItem('wishlist', JSON.stringify(wishlist));
-    setIsWishlisted(!isWishlisted);
   };
 
-  const handleReviewSubmit = (e) => {
+  const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!reviewText.trim()) return;
     
-    const newReview = {
-      user: user?.name || 'Anonymous',
-      rating,
-      comment: reviewText,
-      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    };
-    
-    setProduct(prev => ({
-      ...prev,
-      reviews: [newReview, ...prev.reviews]
-    }));
-    setReviewText('');
-    setRating(5);
+    try {
+      await api.post(`/products/${id}/reviews`, {
+        rating,
+        comment: reviewText
+      });
+      
+      const newReview = {
+        user: user?.name || 'Anonymous',
+        rating,
+        comment: reviewText,
+        createdAt: new Date().toISOString()
+      };
+      
+      setProduct(prev => ({
+        ...prev,
+        reviews: [newReview, ...prev.reviews],
+        numReviews: prev.numReviews + 1,
+        rating: ((prev.rating * prev.numReviews) + rating) / (prev.numReviews + 1)
+      }));
+      setReviewText('');
+      setRating(5);
+      alert('Review added successfully!');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert(error.response?.data?.message || 'Failed to submit review');
+    }
   };
 
   if (loading) {
@@ -257,8 +301,8 @@ const ProductDetails = () => {
                     <p className="font-medium text-gray-800 text-sm">{review.comment}</p>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
-                    <span className="font-semibold text-gray-700">{review.user}</span>
-                    <span>{review.date}</span>
+                    <span className="font-semibold text-gray-700">{review.user || review.name}</span>
+                    <span>{review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : review.date}</span>
                   </div>
                 </div>
               ))}
@@ -267,6 +311,18 @@ const ProductDetails = () => {
           
         </div>
       </div>
+      
+      {/* Related Products Section */}
+      {relatedProducts.length > 0 && (
+        <div className="max-w-[1400px] mx-auto mt-12 bg-white rounded-sm shadow-sm p-6">
+          <h2 className="text-xl font-bold mb-6 text-gray-800">Similar Items</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {relatedProducts.map((prod, index) => (
+              <ProductCard key={prod._id} product={prod} index={index} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

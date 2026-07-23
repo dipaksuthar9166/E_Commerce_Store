@@ -21,6 +21,7 @@ const navItems = [
   { label: 'Live Orders', icon: ShoppingBag,  path: '/admin/orders' },
   { label: 'Finances',    icon: BarChart2,    path: '/admin/finances' },
   { label: 'Users',       icon: Users,        path: '/admin/users' },
+  { label: 'Categories',  icon: LayoutGrid,   path: '/admin/categories' },
   { label: 'Settings',    icon: Settings,     path: '/admin/settings' },
 ];
 

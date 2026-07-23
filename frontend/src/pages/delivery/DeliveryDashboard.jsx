@@ -136,8 +136,18 @@ const ActiveDeliveryCard = ({ task, onDeliver }) => {
         />
         <div className="flex gap-2">
           <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.deliveryAddress)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-white/30 transition-colors"
+            title="Get Directions"
+          >
+            <Navigation className="w-5 h-5 text-white" />
+          </a>
+          <a
             href={`tel:${task.phone}`}
             className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-white/30 transition-colors"
+            title="Call Customer"
           >
             <Phone className="w-5 h-5 text-white" />
           </a>

@@ -18,6 +18,8 @@ import {
   Image as ImageIcon,
   HelpCircle,
   Tag,
+  MessageCircle,
+  Zap,
 } from 'lucide-react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,6 +47,7 @@ const navSections = [
     title: 'Marketing',
     items: [
       { label: 'Banners / Ads', icon: ImageIcon, to: '/vendor/banners' },
+      { label: 'Promotions', icon: Zap, to: '/vendor/promotions' },
       { label: 'Coupons', icon: Ticket, to: '/vendor/coupons' },
     ],
   },
@@ -53,6 +56,7 @@ const navSections = [
     items: [
       { label: 'Orders', icon: ShoppingBag, to: '/vendor/orders' },
       { label: 'Customers', icon: Users, to: '/vendor/customers' },
+      { label: 'Reviews', icon: MessageCircle, to: '/vendor/reviews' },
       { label: 'Earnings', icon: DollarSign, to: '/vendor/earnings' },
     ],
   },
