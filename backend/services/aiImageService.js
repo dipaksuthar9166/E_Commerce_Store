@@ -1,101 +1,45 @@
 const axios = require('axios');
-// const fs = require('fs'); // Uncomment if you need to save files temporarily
-// const path = require('path'); // Uncomment if you need to manage file paths
-
-// --- STEP 1: CHOOSE AND CONFIGURE YOUR SERVICES ---
-
-// A) AI Image Generation Service (e.g., OpenAI, Stability AI)
-//    You will need to install the required SDK, e.g., `npm install openai`
-//    Uncomment and configure the service you want to use.
-const OpenAI = require('openai');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// B) Cloud Storage Service (e.g., AWS S3, Cloudinary)
-//    You will need to install the required SDK, e.g., `npm install @aws-sdk/client-s3`
-//    Uncomment and configure the service you want to use.
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const s3Client = new S3Client({
-  // Support both naming conventions used in .env
-  region: process.env.AWS_S3_REGION || process.env.AWS_REGION || 'ap-south-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+const cheerio = require('cheerio');
 
 /**
- * **SCAFFOLD FUNCTION**
- * Generates an image using an AI service based on a prompt, then uploads it to cloud storage.
+ * Generates an image using an Yahoo Image Search based on a prompt.
  *
- * @param {string} prompt The prompt to send to the AI image generation service.
- * @returns {Promise<string>} The final, permanent URL of the image in your cloud storage.
+ * @param {string} prompt The prompt to send to the image search.
+ * @returns {Promise<string>} The final URL of the image.
  */
 const generateAndStoreImage = async (prompt) => {
-  console.log(`Generating AI image with prompt: "${prompt}"`);
-
-  // --- STEP 2: GENERATE THE IMAGE ---
-  // This section calls the AI API. The response will likely contain a temporary URL.
-  // Replace this with the actual API call to your chosen service (DALL-E, Stable Diffusion, etc.).
-
-  let temporaryImageUrl;
-  try {
-    // EXAMPLE FOR DALL-E 3:
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: prompt,
-      n: 1,
-      size: "1024x1024", // or "1792x1024" or "1024x1792"
-      quality: "standard", // or "hd"
-    });
-    temporaryImageUrl = response.data[0].url;
-    console.log(`Generated temporary image URL: ${temporaryImageUrl}`);
-  } catch (error) {
-    console.error('--- AI IMAGE GENERATION FAILED ---');
-    console.error(error.message);
-    // Return a default fallback image URL if generation fails
-    return 'https://via.placeholder.com/1024.png?text=Image+Generation+Failed';
-  }
-
-  // --- STEP 3: DOWNLOAD AND UPLOAD TO YOUR STORAGE ---
-  // The temporary URL from the AI service will expire. You must download the image
-  // and upload it to your own persistent storage (like AWS S3, Cloudinary, etc.).
+  console.log(`Searching real image with prompt: "${prompt}"`);
 
   try {
-    // 1. Download the image data from the temporary URL
-    const imageResponse = await axios({
-      method: 'get',
-      url: temporaryImageUrl,
-      responseType: 'arraybuffer',
+    const response = await axios.get('https://images.search.yahoo.com/search/images?p=' + encodeURIComponent(prompt), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      }
     });
-    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
-    const contentType = imageResponse.headers['content-type'] || 'image/png';
-    const fileExtension = contentType.split('/')[1] || 'png';
-    const fileName = `product_${Date.now()}.${fileExtension}`;
 
-    // EXAMPLE FOR AWS S3 UPLOAD:
-    // 2. Define S3 upload parameters
-    const s3Params = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME || process.env.AWS_BUCKET_NAME,
-      Key: `products/${fileName}`,
-      Body: imageBuffer,
-      ContentType: contentType,
-      ACL: 'public-read', // Make the image publicly accessible
-    };
+    const $ = cheerio.load(response.data);
+    let imageUrl = null;
 
-    // 3. Upload to S3
-    await s3Client.send(new PutObjectCommand(s3Params));
+    $('img').each((i, el) => {
+      const src = $(el).attr('data-src') || $(el).attr('src');
+      // basic filter to avoid tiny icons or tracking pixels
+      if (src && src.startsWith('http') && !src.includes('clear.gif') && !src.includes('pixel')) {
+        imageUrl = src;
+        return false; // break loop
+      }
+    });
 
-    // 4. Construct the permanent URL
-    const s3Region = process.env.AWS_S3_REGION || process.env.AWS_REGION || 'ap-south-1';
-    const permanentUrl = `https://${s3Params.Bucket}.s3.${s3Region}.amazonaws.com/${s3Params.Key}`;
-    console.log(`Successfully uploaded image to S3. Permanent URL: ${permanentUrl}`);
-    
-    return permanentUrl;
+    if (imageUrl) {
+      console.log(`Found real image: ${imageUrl}`);
+      return imageUrl;
+    } else {
+      console.log('No image found, using fallback.');
+      return 'https://via.placeholder.com/1024.png?text=' + encodeURIComponent(prompt);
+    }
   } catch (error) {
-    console.error('--- CLOUD STORAGE UPLOAD FAILED ---');
+    console.error('--- IMAGE SEARCH FAILED ---');
     console.error(error.message);
-    // Return a fallback image URL if upload fails
-    return 'https://via.placeholder.com/1024.png?text=Image+Upload+Failed';
+    return 'https://via.placeholder.com/1024.png?text=Image+Search+Failed';
   }
 };
 

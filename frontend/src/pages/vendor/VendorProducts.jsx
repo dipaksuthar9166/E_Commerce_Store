@@ -20,8 +20,10 @@ import {
   ScanLine,
   Sparkles,
   CheckCircle2,
+  FileSpreadsheet,
 } from 'lucide-react';
 import api from '../../api/axios';
+import BulkUploadModal from '../../components/vendor/BulkUploadModal';
 
 const StockBadge = ({ stock }) => {
   if (stock === 0) {
@@ -87,6 +89,7 @@ const VendorProducts = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
   const [promotingProduct, setPromotingProduct] = useState(null);
   const [errors, setErrors] = useState({});
@@ -349,13 +352,22 @@ const VendorProducts = () => {
             Scan barcode to auto-fill name, image &amp; details — only set price &amp; stock
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-400 hover:bg-orange-500 text-white font-medium text-sm shadow-sm transition-colors self-start"
-        >
-          <Plus size={17} />
-          Add Product
-        </button>
+        <div className="flex gap-2 self-start">
+          <button
+            onClick={() => setIsBulkModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium text-sm shadow-sm transition-colors"
+          >
+            <FileSpreadsheet size={17} />
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-400 hover:bg-orange-500 text-white font-medium text-sm shadow-sm transition-colors"
+          >
+            <Plus size={17} />
+            Add Product
+          </button>
+        </div>
       </div>
 
       <div className="relative max-w-sm">
@@ -495,6 +507,12 @@ const VendorProducts = () => {
           </table>
         </div>
       </div>
+
+      <BulkUploadModal 
+        isOpen={isBulkModalOpen} 
+        onClose={() => setIsBulkModalOpen(false)} 
+        onUploadSuccess={fetchProducts} 
+      />
 
       {/* Add / Edit Product Modal */}
       {isModalOpen && editingProduct && (
@@ -734,9 +752,9 @@ const VendorProducts = () => {
               </div>
 
               {!editingProduct.imagePath && !editingProduct._id && (
-                <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                <p className="text-[11px] text-gray-500 flex items-center gap-1.5 pt-2">
                   <ImageIcon size={12} />
-                  No barcode image — AI image will be tried on save (optional).
+                  No barcode image — Auto-Search image will be applied on save (optional).
                 </p>
               )}
 

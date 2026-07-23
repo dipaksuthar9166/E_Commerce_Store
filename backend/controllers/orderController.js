@@ -1,13 +1,15 @@
 const Order = require('../models/Order');
 const Shop = require('../models/Shop');
 const Product = require('../models/Product');
+const Coupon = require('../models/Coupon');
 
 // @desc    Customer places a new order
 // @route   POST /api/orders
 // @access  Private (customer)
+// @access  Private (customer)
 exports.placeOrder = async (req, res) => {
     try {
-        const { items, deliveryAddress, paymentMethod } = req.body;
+        const { items, deliveryAddress, paymentMethod, couponCode } = req.body;
 
         if (!items || !items.length || !deliveryAddress) {
             return res.status(400).json({ message: 'Items and deliveryAddress are required' });
@@ -48,13 +50,36 @@ exports.placeOrder = async (req, res) => {
         // Create a separate order for each shop
         for (const shopId in itemsByShop) {
             const shopItems = itemsByShop[shopId];
-            const totalAmount = shopItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let totalAmount = shopItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let discountAmount = 0;
+
+            // Apply Coupon if provided
+            if (couponCode) {
+                const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), shopId: shopId, isActive: true });
+                if (coupon) {
+                    const now = new Date();
+                    if (now >= coupon.validFrom && now <= coupon.validUntil && totalAmount >= coupon.minOrderAmount) {
+                        if (coupon.discountType === 'fixed') {
+                            discountAmount = coupon.discountValue;
+                        } else if (coupon.discountType === 'percent') {
+                            discountAmount = (totalAmount * coupon.discountValue) / 100;
+                            if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+                                discountAmount = coupon.maxDiscount;
+                            }
+                        }
+                        discountAmount = Math.min(discountAmount, totalAmount);
+                        totalAmount -= discountAmount;
+                    }
+                }
+            }
 
             const order = new Order({
                 userId: req.user._id,
                 shopId,
                 items: shopItems,
                 totalAmount,
+                couponCode: discountAmount > 0 ? couponCode.toUpperCase() : null,
+                discountAmount,
                 deliveryAddress,
                 paymentMethod: paymentMethod || 'cod',
                 status: 'pending',

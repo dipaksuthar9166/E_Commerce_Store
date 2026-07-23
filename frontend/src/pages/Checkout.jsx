@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   CheckCircle, MapPin, CreditCard, Loader2,
-  ShoppingBag, AlertCircle,
+  ShoppingBag, AlertCircle, Ticket
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -23,6 +23,12 @@ const Checkout = () => {
   const [orderId, setOrderId] = useState(null);
   const [address, setAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cod');
+  
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
 
   // Redirect if no items to checkout
   useEffect(() => {
@@ -40,6 +46,37 @@ const Checkout = () => {
 
   // Group by shopId — in a hyperlocal app one cart = one shop
   const shopId = checkoutItems[0]?.product?.shopId || checkoutItems[0]?.shopId;
+  
+  // Calculate subtotal
+  const subtotal = getCheckoutTotal();
+  const deliveryFee = subtotal > 299 ? 0 : 29;
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault(); // Prevent form submission
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const { data } = await api.post('/coupons/validate', {
+        code: couponInput,
+        shopId: shopId,
+        orderAmount: subtotal
+      });
+      setAppliedCoupon(data);
+      setDiscountAmount(data.discountAmount);
+      setCouponInput('');
+    } catch (err) {
+      setCouponError(err.response?.data?.message || 'Invalid coupon code');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setDiscountAmount(0);
+  };
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
@@ -64,6 +101,7 @@ const Checkout = () => {
         shopId,
         deliveryAddress: address,
         paymentMethod,
+        couponCode: appliedCoupon ? appliedCoupon.couponCode : null,
         items: checkoutItems.map(item => ({
           productId: item.product?._id || item.product?.id || item._id,
           quantity: item.quantity,
@@ -121,9 +159,6 @@ const Checkout = () => {
   }
 
   // ─── Checkout Form ────────────────────────────────────────────────────────
-  const subtotal = getCheckoutTotal();
-  const deliveryFee = subtotal > 299 ? 0 : 29;
-  const total = subtotal + deliveryFee;
 
   return (
     <div className="max-w-2xl mx-auto animate-in fade-in duration-500 pb-24">
@@ -166,10 +201,60 @@ const Checkout = () => {
                 {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
               </span>
             </div>
+            {appliedCoupon && (
+              <div className="flex justify-between text-green-600 font-semibold">
+                <span>Coupon ({appliedCoupon.couponCode})</span>
+                <span>-₹{discountAmount.toFixed(0)}</span>
+              </div>
+            )}
             <div className="flex justify-between font-black text-gray-900 text-base pt-1 border-t border-gray-100">
               <span>Total</span><span>₹{total.toFixed(0)}</span>
             </div>
           </div>
+        </div>
+
+        {/* Coupon Section */}
+        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+          <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+            <Ticket className="w-5 h-5 text-primary" /> Apply Coupon
+          </h2>
+          
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between p-3 bg-green-50 border border-green-100 rounded-xl">
+              <div>
+                <span className="font-bold text-green-700">{appliedCoupon.couponCode}</span>
+                <p className="text-xs text-green-600 mt-0.5">Coupon applied successfully!</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={handleRemoveCoupon}
+                className="text-red-500 hover:text-red-700 text-sm font-semibold px-2 py-1"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="flex-1 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary uppercase tracking-wide"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={couponLoading || !couponInput.trim()}
+                  className="bg-gray-900 hover:bg-gray-800 text-white px-5 py-3 rounded-xl text-sm font-bold disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 transition"
+                >
+                  {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                </button>
+              </div>
+              {couponError && <p className="text-red-500 text-xs mt-2 font-medium">{couponError}</p>}
+            </div>
+          )}
         </div>
 
         {/* Delivery Address */}

@@ -5,6 +5,8 @@ const Category = require('../models/Category');
 const { generateProductPrompt } = require('../utils/promptGenerator');
 const { generateAndStoreImage } = require('../services/aiImageService');
 const { lookupBarcode, cleanBarcode } = require('../services/barcodeLookupService');
+const xlsx = require('xlsx');
+const { uploadBufferToS3 } = require('../services/uploadService');
 
 
 const COMMISSION_RATE = 0.1;
@@ -628,5 +630,119 @@ exports.updateProductPromotion = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Bulk upload products from Excel sheet
+// @route   POST /api/vendor/products/bulk
+// @access  Private (vendor)
+exports.bulkUploadProducts = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) {
+      return res.status(404).json({ message: 'No shop found for this vendor' });
+    }
+
+    // `req.files` will contain 'excel' and 'images' (array)
+    if (!req.files || !req.files.excel || req.files.excel.length === 0) {
+      return res.status(400).json({ message: 'Please upload an Excel file.' });
+    }
+
+    const excelFile = req.files.excel[0];
+    const imageFiles = req.files.images || [];
+
+    // Parse Excel
+    const workbook = xlsx.read(excelFile.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(sheet);
+
+    if (!data || data.length === 0) {
+      return res.status(400).json({ message: 'Excel sheet is empty or invalid.' });
+    }
+
+    const createdProducts = [];
+    const errors = [];
+
+    // Cache categories to minimize DB calls
+    const categoryCache = {};
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      try {
+        const name = row['Name'] || row['name'];
+        const price = row['Price'] || row['price'];
+        let stock = row['Stock'] || row['stock'] || 0;
+        const description = row['Description'] || row['description'] || '';
+        const categoryName = row['Category'] || row['category'] || 'Uncategorized';
+        const imageFilename = row['Image Filename'] || row['image'] || '';
+        let color = row['Color'] || row['color'] || '';
+        
+        if (!name || price === undefined) {
+          errors.push(`Row ${i + 2}: Missing required fields (Name or Price).`);
+          continue;
+        }
+
+        // Handle Category
+        const normalizedCatName = String(categoryName).trim();
+        let resolvedCategory = categoryCache[normalizedCatName.toLowerCase()];
+        
+        if (!resolvedCategory) {
+          resolvedCategory = await Category.findOne({
+            shopId: shop._id,
+            name: { $regex: `^${normalizedCatName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+          });
+          if (!resolvedCategory) {
+            resolvedCategory = await Category.create({ shopId: shop._id, name: normalizedCatName });
+          }
+          categoryCache[normalizedCatName.toLowerCase()] = resolvedCategory;
+        }
+
+        // Handle Image
+        let imageUrl = 'https://via.placeholder.com/512.png?text=No+Image';
+        if (imageFilename) {
+          // Find matching uploaded image file
+          const matchedImage = imageFiles.find(file => file.originalname === imageFilename);
+          if (matchedImage) {
+            const uploadedUrl = await uploadBufferToS3(matchedImage.buffer, matchedImage.originalname, matchedImage.mimetype);
+            if (uploadedUrl) {
+              imageUrl = uploadedUrl;
+            }
+          } else {
+             // Try to see if it's already a URL
+             if(imageFilename.startsWith('http')){
+                 imageUrl = imageFilename;
+             }
+          }
+        }
+
+        // Create Product
+        const product = await Product.create({
+          shopId: shop._id,
+          name: String(name),
+          price: Number(price),
+          color: String(color),
+          stock: Number(stock),
+          description: String(description),
+          categoryId: resolvedCategory._id,
+          category: resolvedCategory.name,
+          imagePath: imageUrl,
+        });
+
+        createdProducts.push(product);
+      } catch (rowErr) {
+        errors.push(`Row ${i + 2}: ${rowErr.message}`);
+      }
+    }
+
+    res.status(200).json({
+      message: `Successfully added ${createdProducts.length} products.`,
+      added: createdProducts.length,
+      errors: errors
+    });
+
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({ message: 'Server error during bulk upload', error: error.message });
   }
 };

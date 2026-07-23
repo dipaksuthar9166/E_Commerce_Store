@@ -62,6 +62,14 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
+  couponCode: {
+    type: String,
+    default: null,
+  },
+  discountAmount: {
+    type: Number,
+    default: 0,
+  },
   // --- New fields for Flipkart-like functionality ---
   deliveryOTP: {
     type: String,

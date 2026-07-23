@@ -14,6 +14,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const deliveryRoutes = require('./routes/deliveryRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const productRoutes = require('./routes/productRoutes');
+const couponRoutes = require('./routes/couponRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -101,6 +102,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/coupons', couponRoutes);
 
 app.get('/', (req, res) => {
   res.send('Mersko E-Commerce API is running...');
