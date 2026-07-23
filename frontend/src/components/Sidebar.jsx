@@ -45,9 +45,9 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       )}
 
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 w-[280px] bg-white transform transition-transform duration-300 ease-out flex flex-col
-          ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          md:border md:border-slate-200/80 md:rounded-2xl md:my-5 md:ml-5 md:h-[calc(100vh-140px)] md:sticky md:top-[120px] shadow-sm md:overflow-y-auto
+        className={`max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-[280px] bg-white transform transition-transform duration-300 ease-out flex flex-col
+          ${isOpen ? 'translate-x-0' : 'max-md:-translate-x-full translate-x-0'}
+          md:sticky md:top-[120px] md:w-[260px] md:shrink-0 md:h-[calc(100vh-140px)] md:border md:border-slate-200/80 md:rounded-2xl md:my-5 md:ml-5 md:shadow-sm md:overflow-y-auto md:self-start md:z-10
         `}
       >
         <div className="flex items-center justify-between p-4 md:hidden border-b border-slate-100">
