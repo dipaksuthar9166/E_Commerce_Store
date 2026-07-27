@@ -31,13 +31,15 @@ export const SocketProvider = ({ children }) => {
     }
 
     const userId = String(user._id);
+    // Don't block first paint — connect after a tick; prefer polling first on cold hosts
     const newSocket = io(getSocketBaseUrl(), {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 800,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 8,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 8000,
+      timeout: 12000,
     });
 
     const joinRooms = () => {

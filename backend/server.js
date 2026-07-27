@@ -158,6 +158,15 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/config', configRoutes);
 
+// Lightweight health check — used by keep-alive pings (no DB work)
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    ok: true,
+    uptime: process.uptime(),
+    ts: Date.now(),
+  });
+});
+
 app.get('/', (req, res) => {
   res.send('Mersko E-Commerce API is running...');
 });
@@ -192,6 +201,27 @@ mongoose
         console.log('LAN (same Wi‑Fi — use this IP in the phone browser for frontend):\n' + lanLines);
       } else {
         console.log(`LAN access: http://<YOUR_PC_IP>:${PORT}`);
+      }
+
+      // Render free tier sleeps after ~15 min idle. Self-ping keeps it warm.
+      // Set KEEP_ALIVE_URL to your public API root, e.g. https://xxx.onrender.com
+      // Or rely on RENDER_EXTERNAL_URL which Render injects automatically.
+      const keepAliveBase = (
+        process.env.KEEP_ALIVE_URL ||
+        process.env.RENDER_EXTERNAL_URL ||
+        ''
+      ).replace(/\/+$/, '');
+      // Note: self-ping only helps WHILE the dyno is awake. Free Render still
+      // needs an external cron (UptimeRobot / cron-job.org) after full sleep.
+      if (keepAliveBase) {
+        const pingUrl = `${keepAliveBase}/api/health`;
+        const intervalMs = Number(process.env.KEEP_ALIVE_INTERVAL_MS) || 10 * 60 * 1000;
+        const ping = () => {
+          fetch(pingUrl).catch(() => {});
+        };
+        setInterval(ping, intervalMs);
+        setTimeout(ping, 20_000);
+        console.log(`Keep-alive enabled → ${pingUrl} every ${Math.round(intervalMs / 60000)}m`);
       }
     });
   })

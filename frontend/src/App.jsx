@@ -1,54 +1,11 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-// Layouts
+
+// Layouts — keep small shells eager
 import MainLayout from './layouts/MainLayout';
 import VendorLayout from './layouts/VendorLayout';
 import DeliveryLayout from './layouts/DeliveryLayout';
 import AdminLayout from './layouts/AdminLayout';
-
-// Core Customer Pages
-import Home from './pages/Home';
-import ProductListing from './pages/ProductListing';
-import ProductDetails from './pages/ProductDetails';
-import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
-import Orders from './pages/Orders';
-import Wishlist from './pages/Wishlist';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import CategoryPage from './pages/CategoryPage';
-
-// Vendor Portal Pages
-import VendorDashboard from './pages/vendor/VendorDashboard';
-import VendorProducts from './pages/vendor/VendorProducts';
-import VendorCategories from './pages/vendor/VendorCategories';
-import VendorOrders from './pages/vendor/VendorOrders';
-import VendorEarnings from './pages/vendor/VendorEarnings';
-import VendorSettings from './pages/vendor/VendorSettings';
-import VendorInventory from './pages/vendor/VendorInventory';
-import VendorCustomers from './pages/vendor/VendorCustomers';
-import VendorCoupons from './pages/vendor/VendorCoupons';
-import VendorPromotions from './pages/vendor/VendorPromotions';
-import VendorReviews from './pages/vendor/VendorReviews';
-import VendorSupport from './pages/vendor/VendorSupport';
-import VendorBanners from './pages/vendor/VendorBanners';
-
-// Admin Portal Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminShops from './pages/admin/AdminShops';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminFinances from './pages/admin/AdminFinances';
-import AdminSettings from './pages/admin/AdminSettings';
-import AdminCategories from './pages/admin/AdminCategories';
-import AdminOrders from './pages/admin/AdminOrders';
-
-// Delivery Portal Pages
-import DeliveryDashboard from './pages/delivery/DeliveryDashboard';
-import DeliveryEarnings from './pages/delivery/DeliveryEarnings';
-import DeliveryHistory from './pages/delivery/DeliveryHistory';
-import DeliveryProfile from './pages/delivery/DeliveryProfile';
 
 // Contexts & Security
 import { CartProvider } from './contexts/CartContext';
@@ -56,7 +13,60 @@ import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { LocationProvider } from './contexts/LocationContext';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
-import LocationPickerModal from './components/LocationPickerModal';
+
+// Lazy pages — only download what the user visits (cuts first-load JS a lot)
+const Home = lazy(() => import('./pages/Home'));
+const ProductListing = lazy(() => import('./pages/ProductListing'));
+const ProductDetails = lazy(() => import('./pages/ProductDetails'));
+const Cart = lazy(() => import('./pages/Cart'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const Orders = lazy(() => import('./pages/Orders'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const CategoryPage = lazy(() => import('./pages/CategoryPage'));
+
+const VendorDashboard = lazy(() => import('./pages/vendor/VendorDashboard'));
+const VendorProducts = lazy(() => import('./pages/vendor/VendorProducts'));
+const VendorCategories = lazy(() => import('./pages/vendor/VendorCategories'));
+const VendorOrders = lazy(() => import('./pages/vendor/VendorOrders'));
+const VendorEarnings = lazy(() => import('./pages/vendor/VendorEarnings'));
+const VendorSettings = lazy(() => import('./pages/vendor/VendorSettings'));
+const VendorInventory = lazy(() => import('./pages/vendor/VendorInventory'));
+const VendorCustomers = lazy(() => import('./pages/vendor/VendorCustomers'));
+const VendorCoupons = lazy(() => import('./pages/vendor/VendorCoupons'));
+const VendorPromotions = lazy(() => import('./pages/vendor/VendorPromotions'));
+const VendorReviews = lazy(() => import('./pages/vendor/VendorReviews'));
+const VendorSupport = lazy(() => import('./pages/vendor/VendorSupport'));
+const VendorBanners = lazy(() => import('./pages/vendor/VendorBanners'));
+
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminShops = lazy(() => import('./pages/admin/AdminShops'));
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
+const AdminFinances = lazy(() => import('./pages/admin/AdminFinances'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
+const AdminCategories = lazy(() => import('./pages/admin/AdminCategories'));
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
+
+const DeliveryDashboard = lazy(() => import('./pages/delivery/DeliveryDashboard'));
+const DeliveryEarnings = lazy(() => import('./pages/delivery/DeliveryEarnings'));
+const DeliveryHistory = lazy(() => import('./pages/delivery/DeliveryHistory'));
+const DeliveryProfile = lazy(() => import('./pages/delivery/DeliveryProfile'));
+
+const LocationPickerModal = lazy(() => import('./components/LocationPickerModal'));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh] w-full py-16">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-9 h-9 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        <p className="text-sm text-slate-500 font-medium">Loading…</p>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -65,7 +75,10 @@ function App() {
         <SocketProvider>
           <CartProvider>
             <LocationProvider>
-            <LocationPickerModal />
+            <Suspense fallback={null}>
+              <LocationPickerModal />
+            </Suspense>
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* ── Auth (standalone — no sidebar/top nav) ──── */}
               <Route path="/login" element={<Login />} />
@@ -143,6 +156,7 @@ function App() {
                 <Route path="settings" element={<AdminSettings />} />
               </Route>
             </Routes>
+            </Suspense>
             </LocationProvider>
           </CartProvider>
         </SocketProvider>

@@ -7,12 +7,22 @@ const Product = require('../models/Product');
  * @access  Public
  */
 exports.getProducts = asyncHandler(async (req, res) => {
-  // First, find all shops that are active and online
-  const activeShops = await require('../models/Shop').find({ isActive: true, isOnline: true }).select('_id');
-  const activeShopIds = activeShops.map(shop => shop._id);
+  const Shop = require('../models/Shop');
+
+  // Lean shop id list only — avoid full documents
+  const activeShops = await Shop.find({ isActive: true, isOnline: true })
+    .select('_id')
+    .lean();
+  const activeShopIds = activeShops.map((shop) => shop._id);
+
+  // No open shops → empty catalogue (skip product scan)
+  if (activeShopIds.length === 0) {
+    res.set('Cache-Control', 'public, max-age=30');
+    return res.status(200).json([]);
+  }
 
   const filter = {
-    shopId: { $in: activeShopIds } // Only products from active shops
+    shopId: { $in: activeShopIds },
   };
   const search = req.query.search || req.query.keyword || '';
 
@@ -21,10 +31,10 @@ exports.getProducts = asyncHandler(async (req, res) => {
   }
 
   if (search.trim()) {
+    const q = search.trim();
     filter.$or = [
-      { name: { $regex: search.trim(), $options: 'i' } },
-      { description: { $regex: search.trim(), $options: 'i' } },
-      { category: { $regex: search.trim(), $options: 'i' } },
+      { name: { $regex: q, $options: 'i' } },
+      { category: { $regex: q, $options: 'i' } },
     ];
   }
 
@@ -49,13 +59,19 @@ exports.getProducts = asyncHandler(async (req, res) => {
     }
   }
 
-  const limit = Math.min(Number(req.query.limit) || 100, 200);
+  const limit = Math.min(Number(req.query.limit) || 48, 100);
 
+  // List views don't need full review arrays — keeps payload small & fast
   const products = await Product.find(filter)
+    .select(
+      'name price imagePath images shopId category categoryId stock promo_tag discount_percent averageRating numReviews createdAt'
+    )
     .populate('shopId', 'shopName isOnline isActive')
     .sort({ createdAt: -1 })
-    .limit(limit);
+    .limit(limit)
+    .lean();
 
+  res.set('Cache-Control', 'public, max-age=20');
   res.status(200).json(products);
 });
 

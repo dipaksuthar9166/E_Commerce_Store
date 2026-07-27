@@ -93,10 +93,11 @@ function getCurrentPosition() {
       reject(new Error('Geolocation is not supported by this browser.'));
       return;
     }
+    // Low accuracy first = much faster on mobile; picker can refine later
     navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 60_000,
+      enableHighAccuracy: false,
+      timeout: 6000,
+      maximumAge: 5 * 60_000,
     });
   });
 }

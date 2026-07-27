@@ -35,22 +35,23 @@ const ProductCard = ({ product, index = 0 }) => {
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
+  // Local-only check — never hit wishlist API per card (was N+1 and slowed home page badly)
   useEffect(() => {
-    const checkWishlist = async () => {
-      if (user) {
-        try {
-          const { data } = await api.get('/users/wishlist');
-          setWishlisted(data.some(item => (item._id || item) === product._id));
-        } catch (err) {
-          console.error(err);
-        }
-      } else {
+    const sync = () => {
+      try {
         const list = JSON.parse(localStorage.getItem('wishlist') || '[]');
-        setWishlisted(list.some(item => item._id === product._id));
+        const id = String(product._id);
+        setWishlisted(
+          list.some((item) => String(item._id || item.id || item) === id)
+        );
+      } catch {
+        setWishlisted(false);
       }
     };
-    checkWishlist();
-  }, [product._id, user]);
+    sync();
+    window.addEventListener('wishlist-updated', sync);
+    return () => window.removeEventListener('wishlist-updated', sync);
+  }, [product._id]);
 
   const discount = product.discount_percent || product.discount || 0;
   const original = Number(product.price) || 0;
@@ -95,6 +96,8 @@ const ProductCard = ({ product, index = 0 }) => {
             className="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-400"
             onError={() => setImgError(true)}
             loading="lazy"
+            decoding="async"
+            fetchPriority="low"
           />
 
           {/* Wishlist */}

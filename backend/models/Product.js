@@ -75,4 +75,9 @@ const productSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+// Speed up catalogue / home queries
+productSchema.index({ shopId: 1, createdAt: -1 });
+productSchema.index({ categoryId: 1, createdAt: -1 });
+productSchema.index({ promo_tag: 1 });
+
 module.exports = mongoose.model('Product', productSchema);

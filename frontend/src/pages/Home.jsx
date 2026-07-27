@@ -143,6 +143,8 @@ const Home = () => {
                     }
                     alt={product.name}
                     className="w-full h-full object-contain"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       e.currentTarget.src =
                         'https://images.unsplash.com/photo-1560393464-5c69a73c5770?auto=format&fit=crop&q=80&w=400';
