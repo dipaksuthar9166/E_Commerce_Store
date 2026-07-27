@@ -36,8 +36,8 @@ router.get('/products/lookup/:barcode', protect, authorize('vendor'), lookupProd
 // Bulk upload route (must be before /products/:id)
 router.post('/products/bulk', protect, authorize('vendor'), upload.fields([{ name: 'excel', maxCount: 1 }, { name: 'images', maxCount: 50 }]), bulkUploadProducts);
 router.post('/products/bulk-discount', protect, authorize('vendor'), applyBulkDiscount);
-router.post('/products', protect, authorize('vendor'), addVendorProduct);
-router.put('/products/:id', protect, authorize('vendor'), updateProduct);
+router.post('/products', protect, authorize('vendor'), upload.single('image'), addVendorProduct);
+router.put('/products/:id', protect, authorize('vendor'), upload.single('image'), updateProduct);
 router.put('/products/:id/promo', protect, authorize('vendor'), updateProductPromotion);
 router.get('/orders', protect, authorize('vendor'), getVendorOrders);
 router.put('/orders/:id/status', protect, authorize('vendor'), updateOrderStatus);

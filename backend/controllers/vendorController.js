@@ -388,8 +388,17 @@ exports.addVendorProduct = async (req, res) => {
       }
     }
 
-    // Prefer barcode/catalog image; only call AI if no image provided
+    // Handle manual image upload
     let finalImage = (providedImage && String(providedImage).trim()) || '';
+    
+    if (req.file) {
+      const uploadedUrl = await uploadBufferToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
+      if (uploadedUrl) {
+        finalImage = uploadedUrl;
+      }
+    }
+
+    // Prefer barcode/catalog image; only call AI if no image provided
     if (!finalImage && !skipAiImage) {
       try {
         const prompt = generateProductPrompt(name, colors ? colors[0] : '', resolvedCategory?.name);
@@ -460,6 +469,13 @@ exports.updateProduct = async (req, res) => {
     product.barcode = barcode ?? product.barcode;
     product.categoryId = categoryId || undefined;
     product.imagePath = imagePath ?? product.imagePath;
+
+    if (req.file) {
+      const uploadedUrl = await uploadBufferToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
+      if (uploadedUrl) {
+        product.imagePath = uploadedUrl;
+      }
+    }
 
     if (sizes !== undefined) {
       product.sizes = Array.isArray(sizes) ? sizes : String(sizes).split(',').map(s => s.trim());

@@ -21,9 +21,12 @@ import {
   Sparkles,
   CheckCircle2,
   FileSpreadsheet,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import api from '../../api/axios';
 import BulkUploadModal from '../../components/vendor/BulkUploadModal';
+import CameraScannerModal from '../../components/vendor/CameraScannerModal';
 
 const StockBadge = ({ stock }) => {
   if (stock === 0) {
@@ -98,6 +101,8 @@ const VendorProducts = () => {
   const [submitting, setSubmitting] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupMsg, setLookupMsg] = useState('');
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
   const barcodeInputRef = useRef(null);
 
   useEffect(() => {
@@ -165,6 +170,7 @@ const VendorProducts = () => {
     setIsModalOpen(false);
     setEditingProduct(null);
     setLookupMsg('');
+    setImageFile(null);
   };
 
   const handleOpenPromoModal = (product) => {
@@ -279,30 +285,44 @@ const VendorProducts = () => {
     setSubmitting(true);
     setErrors({});
 
-    const payload = {
-      name: editingProduct.name,
-      price: Number(editingProduct.price),
-      stock: Number(editingProduct.stock),
-      description: editingProduct.description,
-      barcode: editingProduct.barcode,
-      categoryId: editingProduct.categoryId || undefined,
-      categoryName: !editingProduct.categoryId ? editingProduct.categoryName : undefined,
-      colors: editingProduct.colors,
-      sizes: editingProduct.sizes,
-      imagePath: editingProduct.imagePath || undefined,
-      // Skip slow AI when barcode already gave us an image
-      skipAiImage: Boolean(editingProduct.imagePath),
-    };
+    const formData = new FormData();
+    formData.append('name', editingProduct.name);
+    formData.append('price', Number(editingProduct.price));
+    formData.append('stock', Number(editingProduct.stock));
+    formData.append('description', editingProduct.description || '');
+    formData.append('barcode', editingProduct.barcode || '');
+    
+    if (editingProduct.categoryId) {
+      formData.append('categoryId', editingProduct.categoryId);
+    } else if (editingProduct.categoryName) {
+      formData.append('categoryName', editingProduct.categoryName);
+    }
+    
+    if (editingProduct.colors) formData.append('colors', editingProduct.colors);
+    if (editingProduct.sizes) formData.append('sizes', editingProduct.sizes);
+    
+    if (editingProduct.imagePath && !imageFile) {
+      formData.append('imagePath', editingProduct.imagePath);
+    }
+    
+    formData.append('skipAiImage', Boolean(editingProduct.imagePath || imageFile));
+
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
 
     try {
       if (editingProduct._id) {
         const { data: updatedProduct } = await api.put(
           `/vendor/products/${editingProduct._id}`,
-          payload
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
         );
         setProducts(products.map((p) => (p._id === updatedProduct._id ? updatedProduct : p)));
       } else {
-        const { data: newProd } = await api.post('/vendor/products', payload);
+        const { data: newProd } = await api.post('/vendor/products', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
         setProducts([newProd, ...products]);
         // categories may have been auto-created
         fetchCategories();
@@ -599,6 +619,14 @@ const VendorProducts = () => {
                       )}
                       {lookingUp ? '...' : 'Lookup'}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCameraModalOpen(true)}
+                      className="px-3 py-2.5 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 text-sm font-semibold flex items-center gap-1.5 shrink-0"
+                    >
+                      <ScanLine size={16} />
+                      <span className="hidden sm:inline">Scan Barcode</span>
+                    </button>
                   </div>
                   {lookupMsg && (
                     <p
@@ -764,12 +792,42 @@ const VendorProducts = () => {
                 />
               </div>
 
-              {!editingProduct.imagePath && !editingProduct._id && (
-                <p className="text-[11px] text-gray-500 flex items-center gap-1.5 pt-2">
-                  <ImageIcon size={12} />
-                  No barcode image — Auto-Search image will be applied on save (optional).
-                </p>
-              )}
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  Product Image
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 cursor-pointer flex flex-col items-center justify-center py-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
+                    <Upload size={18} className="text-gray-400 mb-1.5" />
+                    <span className="text-[11px] text-gray-500 font-medium">Upload / Capture Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setImageFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </label>
+                  {imageFile && (
+                    <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shrink-0 bg-white group">
+                      <img src={URL.createObjectURL(imageFile)} alt="Preview" className="w-full h-full object-cover" />
+                      <button type="button" onClick={(e) => { e.preventDefault(); setImageFile(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                        <X size={16} className="text-white" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {!editingProduct.imagePath && !editingProduct._id && !imageFile && (
+                  <p className="text-[10px] text-gray-500 flex items-center gap-1.5 pt-2">
+                    <ImageIcon size={12} />
+                    Auto-Search image will be applied on save if left empty.
+                  </p>
+                )}
+              </div>
 
               <div className="flex gap-3 pt-2">
                 <button
@@ -862,6 +920,14 @@ const VendorProducts = () => {
           </div>
         </div>
       )}
+      <CameraScannerModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onScan={(code) => {
+          setEditingProduct({ ...editingProduct, barcode: code });
+          handleBarcodeLookup(code);
+        }}
+      />
     </div>
   );
 };
