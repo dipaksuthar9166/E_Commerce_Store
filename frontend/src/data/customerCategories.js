@@ -56,15 +56,12 @@ const ICON_MAP = {
   offers: Sparkles,
 };
 
+/* Neutral chip backgrounds — single brand blue, not rainbow */
 const COLOR_MAP = [
-  'from-emerald-500 to-teal-600',
-  'from-sky-500 to-blue-600',
-  'from-violet-500 to-purple-600',
-  'from-rose-500 to-pink-600',
-  'from-amber-500 to-orange-600',
-  'from-cyan-500 to-blue-600',
-  'from-orange-500 to-red-500',
-  'from-indigo-500 to-blue-700',
+  'from-slate-100 to-slate-200',
+  'from-blue-50 to-slate-100',
+  'from-slate-50 to-blue-50',
+  'from-slate-100 to-blue-50',
 ];
 
 export function slugifyCategory(name = '') {
@@ -96,7 +93,7 @@ export const staticNavLinks = [
     description: 'Browse full catalogue',
     type: 'link',
     emoji: '📦',
-    color: 'from-blue-500 to-indigo-600',
+    color: 'from-slate-100 to-slate-200',
   },
   {
     key: 'offers',
@@ -107,7 +104,7 @@ export const staticNavLinks = [
     type: 'category',
     categoryName: 'Offers',
     emoji: '🔥',
-    color: 'from-orange-500 to-red-500',
+    color: 'from-slate-100 to-slate-200',
   },
   {
     key: 'orders',
@@ -117,7 +114,7 @@ export const staticNavLinks = [
     description: 'Track your orders',
     type: 'link',
     emoji: '📦',
-    color: 'from-slate-500 to-slate-700',
+    color: 'from-slate-100 to-slate-200',
   },
   {
     key: 'wishlist',
@@ -127,7 +124,7 @@ export const staticNavLinks = [
     description: 'Saved products',
     type: 'link',
     emoji: '❤️',
-    color: 'from-pink-500 to-rose-600',
+    color: 'from-slate-100 to-slate-200',
   },
 ];
 
@@ -136,22 +133,24 @@ export const staticNavLinks = [
  * @param {{ name: string, key?: string, productCount?: number }[]} apiCategories
  */
 export function buildCustomerNavFromApi(apiCategories = []) {
-  const live = (Array.isArray(apiCategories) ? apiCategories : []).map((c, i) => {
-    const meta = pickMeta(c.name, i);
-    const key = c.key || meta.key;
-    return {
-      key,
-      label: c.name,
-      path: `/category/${key}`,
-      icon: meta.icon,
-      description: `${c.productCount || 0} products`,
-      type: 'category',
-      categoryName: c.name,
-      emoji: meta.emoji,
-      color: meta.color,
-      productCount: c.productCount || 0,
-    };
-  });
+  const live = (Array.isArray(apiCategories) ? apiCategories : [])
+    .map((c, i) => {
+      const meta = pickMeta(c.name, i);
+      const key = c.key || meta.key;
+      return {
+        key,
+        label: c.name,
+        path: `/category/${key}`,
+        icon: meta.icon,
+        description: `${c.productCount || 0} products`,
+        type: 'category',
+        categoryName: c.name,
+        emoji: meta.emoji,
+        color: meta.color,
+        productCount: c.productCount || 0,
+      };
+    })
+    .filter((c) => c.key !== 'offers');
 
   // All Products → live vendor categories → Top Offers → Orders → Wishlist
   const allProducts = staticNavLinks.find((l) => l.key === 'all-products');

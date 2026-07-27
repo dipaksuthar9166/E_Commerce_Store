@@ -8,41 +8,42 @@ import 'swiper/css/pagination';
 import 'swiper/css/navigation';
 import api from '../api/axios';
 
+/* Keep promo slides calm: slate / blue only — no rainbow themes */
 const THEMES = [
   {
-    bg: 'from-indigo-600 via-blue-600 to-sky-500',
-    glow: 'bg-white/15',
-    badge: 'bg-amber-400 text-amber-950',
-    btn: 'bg-white text-indigo-700 hover:bg-indigo-50',
-    accent: 'text-indigo-100',
-  },
-  {
-    bg: 'from-rose-600 via-pink-600 to-orange-400',
-    glow: 'bg-white/15',
-    badge: 'bg-white text-rose-700',
-    btn: 'bg-white text-rose-700 hover:bg-rose-50',
-    accent: 'text-rose-100',
-  },
-  {
-    bg: 'from-emerald-600 via-teal-600 to-cyan-500',
-    glow: 'bg-white/15',
-    badge: 'bg-lime-300 text-emerald-900',
-    btn: 'bg-white text-emerald-700 hover:bg-emerald-50',
-    accent: 'text-emerald-100',
-  },
-  {
-    bg: 'from-violet-700 via-purple-600 to-fuchsia-500',
-    glow: 'bg-white/15',
-    badge: 'bg-yellow-300 text-violet-900',
-    btn: 'bg-white text-violet-700 hover:bg-violet-50',
-    accent: 'text-violet-100',
-  },
-  {
-    bg: 'from-slate-800 via-slate-700 to-blue-800',
+    bg: 'from-slate-800 to-slate-900',
     glow: 'bg-white/10',
-    badge: 'bg-orange-400 text-slate-900',
-    btn: 'bg-orange-400 text-slate-900 hover:bg-orange-300',
-    accent: 'text-slate-200',
+    badge: 'bg-blue-600 text-white',
+    btn: 'bg-white text-slate-900 hover:bg-slate-100',
+    accent: 'text-slate-300',
+  },
+  {
+    bg: 'from-blue-700 to-blue-900',
+    glow: 'bg-white/10',
+    badge: 'bg-white text-blue-800',
+    btn: 'bg-white text-blue-800 hover:bg-blue-50',
+    accent: 'text-blue-100',
+  },
+  {
+    bg: 'from-slate-700 to-slate-900',
+    glow: 'bg-white/10',
+    badge: 'bg-slate-200 text-slate-800',
+    btn: 'bg-white text-slate-900 hover:bg-slate-100',
+    accent: 'text-slate-300',
+  },
+  {
+    bg: 'from-blue-800 to-slate-900',
+    glow: 'bg-white/10',
+    badge: 'bg-blue-500 text-white',
+    btn: 'bg-white text-blue-900 hover:bg-blue-50',
+    accent: 'text-blue-100',
+  },
+  {
+    bg: 'from-slate-900 to-slate-800',
+    glow: 'bg-white/8',
+    badge: 'bg-white text-slate-900',
+    btn: 'bg-blue-600 text-white hover:bg-blue-500',
+    accent: 'text-slate-300',
   },
 ];
 

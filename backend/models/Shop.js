@@ -37,6 +37,10 @@ const shopSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  blockedCustomerIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Shop', shopSchema);

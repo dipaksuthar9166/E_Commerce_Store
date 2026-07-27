@@ -6,14 +6,11 @@ import { useCart } from '../contexts/CartContext';
 import { resolveCategoryFromKey } from '../data/customerCategories';
 import usePublicCategories from '../hooks/usePublicCategories';
 
+/* Neutral placeholders only */
 const GRADIENTS = [
-  'from-blue-500 to-indigo-600',
-  'from-emerald-500 to-teal-600',
-  'from-purple-500 to-violet-600',
-  'from-orange-500 to-amber-500',
-  'from-rose-500 to-pink-600',
-  'from-cyan-500 to-blue-600',
-  'from-yellow-500 to-orange-500',
+  'from-slate-200 to-slate-300',
+  'from-slate-100 to-slate-200',
+  'from-blue-50 to-slate-200',
 ];
 
 const getGradient = (id) => {

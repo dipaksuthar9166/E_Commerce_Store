@@ -4,7 +4,6 @@ const { protect, authorize } = require('../middleware/authMiddleware');
 const {
   getAvailableTasks,
   acceptTask,
-  deliverTask,
   getRiderStats,
 } = require('../controllers/deliveryController');
 
@@ -13,7 +12,6 @@ router.use(protect, authorize('delivery'));
 
 router.get('/tasks', getAvailableTasks);
 router.put('/orders/:id/accept', acceptTask);
-router.put('/orders/:id/deliver', deliverTask);
 router.get('/stats', getRiderStats);
 
 module.exports = router;

@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   ChevronRight,
   AlertCircle,
+  ArchiveRestore,
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useSocket } from '../../contexts/SocketContext';
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'packing', label: 'Packing', icon: Box },
   { key: 'ready_for_pickup', label: 'Ready', icon: CheckCircle },
   { key: 'delivered', label: 'Delivered', icon: Truck },
+  { key: 'returns', label: 'Returns', icon: ArchiveRestore },
 ];
 
 const statusConfig = {
@@ -27,6 +29,8 @@ const statusConfig = {
   ready_for_pickup: { label: 'Ready for Pickup', cls: 'bg-indigo-50 text-indigo-700 border-indigo-100', dot: 'bg-indigo-400', nextStatus: 'delivered' },
   delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-700 border-green-100', dot: 'bg-green-400' },
   cancelled: { label: 'Cancelled', cls: 'bg-gray-50 text-gray-700 border-gray-100', dot: 'bg-gray-400' },
+  return_requested: { label: 'Return Requested', cls: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-400' },
+  returned: { label: 'Returned', cls: 'bg-gray-100 text-gray-800 border-gray-200', dot: 'bg-gray-500' },
 };
 
 const StatusBadge = ({ status }) => {
@@ -39,7 +43,7 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const OrderCard = ({ order, onStatusChange }) => (
+const OrderCard = ({ order, onStatusChange, onReturnAction }) => (
   <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
     <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-gray-50">
       <div>
@@ -115,8 +119,25 @@ const OrderCard = ({ order, onStatusChange }) => (
           className="w-full py-2 rounded-lg bg-green-500 text-white font-semibold text-xs hover:bg-green-600 transition-colors shadow-sm"
         >Mark as Delivered</button>
       )}
+      
+      {order.status === 'return_requested' && (
+        <>
+          <button
+            onClick={() => onReturnAction(order._id, 'reject')}
+            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-50 text-red-600 font-semibold text-xs border border-red-100 hover:bg-red-100 transition-colors"
+          >
+            <XCircle size={13} /> Reject Return
+          </button>
+          <button
+            onClick={() => onReturnAction(order._id, 'approve')}
+            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-500 text-white font-semibold text-xs hover:bg-green-600 transition-colors shadow-sm"
+          >
+            <CheckCircle size={13} /> Approve Return
+          </button>
+        </>
+      )}
 
-      {order.status !== 'pending' && !['packing', 'ready_for_pickup', 'accepted'].includes(order.status) && (
+      {order.status !== 'pending' && !['packing', 'ready_for_pickup', 'accepted', 'return_requested'].includes(order.status) && (
         <button className="text-xs text-gray-400 hover:text-blue-600 font-medium flex items-center gap-0.5 transition-colors w-full justify-center">
           View details <ChevronRight size={13} />
         </button>
@@ -158,7 +179,7 @@ const VendorOrders = () => {
   const fetchOrders = async () => {
     try {
       const { data } = await api.get('/vendor/orders');
-      setOrders(data);
+      setOrders(data.orders || []);
     } catch (error) {
       console.error('Error fetching orders', error);
     } finally {
@@ -176,10 +197,39 @@ const VendorOrders = () => {
     }
   };
 
-  const filtered = orders.filter((o) => o.status === activeTab);
-  const counts = { pending: 0, accepted: 0, packing: 0, ready_for_pickup: 0, delivered: 0, cancelled: 0 };
+  const handleReturnAction = async (orderId, action) => {
+    try {
+      const { data } = await api.put(`/vendor/orders/${orderId}/return`, { action });
+      const updated = data.order;
+      if (updated) {
+        setOrders((prev) => prev.map((o) => (o._id === orderId ? updated : o)));
+      } else {
+        // Fallback optimistic update
+        const nextStatus = action === 'approve' ? 'returned' : 'delivered';
+        setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: nextStatus } : o)));
+      }
+    } catch (error) {
+      console.error('Failed to process return action', error);
+      alert(error.response?.data?.message || 'Failed to process return request');
+    }
+  };
+
+  const filtered = orders.filter((o) => {
+    if (activeTab === 'returns') {
+      return ['return_requested', 'returned'].includes(o.status);
+    }
+    return o.status === activeTab;
+  });
+  
+  const counts = { pending: 0, accepted: 0, packing: 0, ready_for_pickup: 0, delivered: 0, returns: 0, cancelled: 0 };
   orders.forEach((o) => {
-    counts[o.status] = (counts[o.status] || 0) + 1;
+    if (o.status) {
+      if (['return_requested', 'returned'].includes(o.status)) {
+        counts.returns++;
+      } else if (counts.hasOwnProperty(o.status)) {
+        counts[o.status]++;
+      }
+    }
   });
 
   return (
@@ -234,7 +284,7 @@ const VendorOrders = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((order) => (
-            <OrderCard key={order._id} order={order} onStatusChange={updateOrderStatus} />
+            <OrderCard key={order._id} order={order} onStatusChange={updateOrderStatus} onReturnAction={handleReturnAction} />
           ))}
         </div>
       )}

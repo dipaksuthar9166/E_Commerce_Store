@@ -1,13 +1,9 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '../utils/apiBase';
 
-// Prefer env; always ensure base ends with /api so routes match backend mounts
-const rawBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const baseURL = rawBase.replace(/\/+$/, '').endsWith('/api')
-  ? rawBase.replace(/\/+$/, '')
-  : `${rawBase.replace(/\/+$/, '')}/api`;
-
+// LAN-aware base URL: phone → same Wi‑Fi IP as frontend; PC → localhost
 const api = axios.create({
-  baseURL,
+  baseURL: getApiBaseUrl(),
 });
 
 // Attach JWT from localStorage on every request

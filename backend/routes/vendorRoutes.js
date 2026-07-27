@@ -14,11 +14,14 @@ const {
   updateProductPromotion,
   getVendorOrders,
   updateOrderStatus,
+  updateReturnStatus,
   getVendorEarnings,
   bulkUploadProducts,
   getVendorReviews,
   replyToReview,
   applyBulkDiscount,
+
+  blockCustomer,
 } = require('../controllers/vendorController');
 const { getTodayActivityStats } = require('../controllers/vendorStatsController');
 
@@ -38,9 +41,12 @@ router.put('/products/:id', protect, authorize('vendor'), updateProduct);
 router.put('/products/:id/promo', protect, authorize('vendor'), updateProductPromotion);
 router.get('/orders', protect, authorize('vendor'), getVendorOrders);
 router.put('/orders/:id/status', protect, authorize('vendor'), updateOrderStatus);
+router.put('/orders/:id/return', protect, authorize('vendor'), updateReturnStatus);
 router.get('/earnings', protect, authorize('vendor'), getVendorEarnings);
 router.get('/stats/today-activity', protect, authorize('vendor'), getTodayActivityStats);
 router.get('/reviews', protect, authorize('vendor'), getVendorReviews);
 router.post('/reviews/:productId/:reviewId/reply', protect, authorize('vendor'), replyToReview);
+
+router.put('/customers/:userId/block', protect, authorize('vendor'), blockCustomer);
 
 module.exports = router;

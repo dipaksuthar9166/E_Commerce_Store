@@ -185,7 +185,7 @@ exports.getProductsByCategory = async (req, res) => {
 
 exports.addProductReview = async (req, res) => {
   try {
-    const { rating, comment } = req.body;
+    const { rating, comment, images } = req.body;
     const productId = req.params.id;
 
     const product = await Product.findById(productId);
@@ -201,11 +201,23 @@ exports.addProductReview = async (req, res) => {
       return res.status(400).json({ message: 'Product already reviewed' });
     }
 
+    if (!rating || Number(rating) < 1 || Number(rating) > 5) {
+      return res.status(400).json({ message: 'Rating must be between 1 and 5' });
+    }
+    if (!comment || !String(comment).trim()) {
+      return res.status(400).json({ message: 'Review comment is required' });
+    }
+
+    const safeImages = Array.isArray(images)
+      ? images.filter((u) => typeof u === 'string' && u.length < 500000).slice(0, 5)
+      : [];
+
     const review = {
       user: req.user._id,
       name: req.user.name,
       rating: Number(rating),
-      comment
+      comment: String(comment).trim().slice(0, 1000),
+      images: safeImages,
     };
 
     product.reviews.push(review);
@@ -213,7 +225,7 @@ exports.addProductReview = async (req, res) => {
     product.averageRating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
 
     await product.save();
-    res.status(201).json({ message: 'Review added' });
+    res.status(201).json({ message: 'Review added', review });
   } catch (error) {
     res.status(500).json({ message: 'Server Error adding review', error: error.message });
   }

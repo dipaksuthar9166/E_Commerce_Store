@@ -25,6 +25,17 @@ const userSchema = new mongoose.Schema({
   vehicleType: {
     type: String,
   },
+  // Live GPS for delivery partners (GeoJSON Point: [lng, lat])
+  lastLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+    },
+    lastUpdated: { type: Date },
+  },
   // --- New fields for Flipkart-like functionality ---
   addresses: [{
     type: { type: String, enum: ['home', 'work', 'other'], default: 'home' },
@@ -38,7 +49,12 @@ const userSchema = new mongoose.Schema({
     ref: 'Product'
   }],
   isActive: { type: Boolean, default: true }, // Admin can deactivate
+  passwordResetToken: String,
+  passwordResetExpires: Date,
 }, { timestamps: true });
+
+// Sparse 2dsphere index — only docs with lastLocation set
+userSchema.index({ lastLocation: '2dsphere' }, { sparse: true });
 
 // Hash password before saving
 userSchema.pre('save', async function() {

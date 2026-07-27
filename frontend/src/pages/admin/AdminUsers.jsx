@@ -12,6 +12,7 @@ import {
   Calendar,
   Loader2,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -222,17 +223,23 @@ const AdminUsers = () => {
                           banLoading[user._id] ? (
                             <Loader2 size={16} className="animate-spin text-slate-400" />
                           ) : (
-                            <button
-                              onClick={() => toggleBan(user._id)}
-                              title={isActive ? 'Ban User' : 'Unban User'}
-                              className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors ${
-                                isActive
-                                  ? 'bg-slate-700 hover:bg-red-700 text-slate-300 hover:text-white'
-                                  : 'bg-emerald-700/60 hover:bg-emerald-600 text-emerald-300 hover:text-white'
-                              }`}
-                            >
-                              {isActive ? <><Ban size={11} /> Ban</> : <><CheckCircle size={11} /> Unban</>}
-                            </button>
+                            isActive ? (
+                                <button
+                                    onClick={() => toggleBan(user._id)}
+                                    title="Deactivate User"
+                                    className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => toggleBan(user._id)}
+                                    title="Reactivate User"
+                                    className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors bg-emerald-700/60 hover:bg-emerald-600 text-emerald-300 hover:text-white"
+                                >
+                                    <CheckCircle size={11} /> Unban
+                                </button>
+                            )
                           )
                         )}
                       </td>

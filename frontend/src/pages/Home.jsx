@@ -81,10 +81,8 @@ const Home = () => {
                 to={cat.path}
                 className="flex-shrink-0 group flex flex-col items-center gap-1.5 w-[72px] sm:w-[84px]"
               >
-                <div
-                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md shadow-slate-200/80 group-hover:scale-105 group-hover:shadow-lg transition-all`}
-                >
-                  <span className="drop-shadow-sm">{cat.emoji}</span>
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 flex items-center justify-center text-2xl group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
+                  <span>{cat.emoji}</span>
                 </div>
                 <span className="text-[11px] sm:text-xs font-semibold text-slate-700 text-center leading-tight group-hover:text-blue-600">
                   {cat.label}
@@ -118,15 +116,15 @@ const Home = () => {
         ))}
       </section>
 
-      {/* Deals strip — products only */}
+      {/* Deals strip — products only (neutral, not rainbow) */}
       {!loading && products.length > 0 && (
-        <section className="rounded-2xl bg-gradient-to-r from-orange-500 via-rose-500 to-pink-600 p-4 sm:p-5 shadow-lg shadow-rose-200/40">
+        <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white font-bold text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
+            <h2 className="text-slate-900 font-bold text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-blue-600" />
               Today&apos;s Picks
             </h2>
-            <Link to="/products" className="text-white/90 text-sm font-medium hover:text-white">
+            <Link to="/products" className="text-blue-600 text-sm font-medium hover:text-blue-700">
               See more →
             </Link>
           </div>
@@ -135,7 +133,7 @@ const Home = () => {
               <Link
                 key={product._id}
                 to={`/product/${product._id}`}
-                className="bg-white/95 backdrop-blur rounded-xl p-2.5 hover:bg-white transition-colors"
+                className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 hover:border-slate-200 hover:bg-white transition-colors"
               >
                 <div className="aspect-square rounded-lg bg-slate-50 flex items-center justify-center p-2 mb-2 overflow-hidden">
                   <img
@@ -212,24 +210,23 @@ const Home = () => {
         )}
       </section>
 
-      {/* CTA banner */}
-      <section className="card-surface overflow-hidden relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700" />
-        <div className="relative z-10 px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* CTA banner — solid blue, no multi-color gradient */}
+      <section className="rounded-2xl border border-slate-200 bg-slate-900 overflow-hidden">
+        <div className="px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">
               Become a seller
             </p>
-            <h3 className="text-white text-xl sm:text-2xl font-black tracking-tight">
+            <h3 className="text-white text-xl sm:text-2xl font-bold tracking-tight">
               Sell on MERSKO
             </h3>
-            <p className="text-blue-100 text-sm mt-1 max-w-md">
+            <p className="text-slate-400 text-sm mt-1 max-w-md">
               List products, manage orders live, and grow with millions of buyers.
             </p>
           </div>
           <Link
             to="/register"
-            className="shrink-0 px-6 py-3 rounded-xl bg-white text-blue-700 font-bold text-sm shadow-lg hover:bg-blue-50 transition-colors"
+            className="shrink-0 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 transition-colors"
           >
             Start selling
           </Link>

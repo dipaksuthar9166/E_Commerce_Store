@@ -6,13 +6,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { getProductImage } from '../utils/productImage';
 import api from '../api/axios';
 
+/* Neutral image placeholder — avoid multi-color card tints */
 const bgTints = [
-  'from-blue-50 to-indigo-50',
-  'from-orange-50 to-amber-50',
-  'from-emerald-50 to-teal-50',
-  'from-rose-50 to-pink-50',
-  'from-violet-50 to-purple-50',
-  'from-sky-50 to-cyan-50',
+  'from-slate-50 to-slate-100',
+  'from-slate-50 to-slate-100',
+  'from-slate-50 to-slate-100',
+  'from-slate-50 to-slate-100',
 ];
 
 function toggleWishlistLocal(product) {

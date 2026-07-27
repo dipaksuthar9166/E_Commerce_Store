@@ -16,6 +16,8 @@ import Orders from './pages/Orders';
 import Wishlist from './pages/Wishlist';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import CategoryPage from './pages/CategoryPage';
 
 // Vendor Portal Pages
@@ -52,7 +54,9 @@ import DeliveryProfile from './pages/delivery/DeliveryProfile';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { LocationProvider } from './contexts/LocationContext';
 import RoleProtectedRoute from './components/RoleProtectedRoute';
+import LocationPickerModal from './components/LocationPickerModal';
 
 function App() {
   return (
@@ -60,10 +64,14 @@ function App() {
       <AuthProvider>
         <SocketProvider>
           <CartProvider>
+            <LocationProvider>
+            <LocationPickerModal />
             <Routes>
               {/* ── Auth (standalone — no sidebar/top nav) ──── */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
 
               {/* ── Customer Routes ──────────────────────────── */}
               <Route path="/" element={<MainLayout />}>
@@ -135,6 +143,7 @@ function App() {
                 <Route path="settings" element={<AdminSettings />} />
               </Route>
             </Routes>
+            </LocationProvider>
           </CartProvider>
         </SocketProvider>
       </AuthProvider>

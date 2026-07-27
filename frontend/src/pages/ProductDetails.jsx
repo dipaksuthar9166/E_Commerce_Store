@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, ShoppingCart, Heart, Shield, RotateCcw, Truck, Share2 } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Shield, RotateCcw, Truck, Share2, Check, AlertCircle } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axios';
@@ -19,6 +19,27 @@ const ProductDetails = () => {
   const [rating, setRating] = useState(5);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  
+  // New UI states
+  const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
+  const [activeTab, setActiveTab] = useState('details');
+
+  useEffect(() => {
+    if (product) {
+      if (product.sizes && product.sizes.length > 0) {
+        setSelectedSize(product.sizes[0]);
+      }
+      if (product.colors && product.colors.length > 0) {
+        setSelectedColor(product.colors[0]);
+      }
+    }
+  }, [product]);
+
+  const handleImageError = (index) => {
+    setImageErrors(prev => ({ ...prev, [index]: true }));
+  };
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -74,10 +95,16 @@ const ProductDetails = () => {
         id: product._id,
         _id: product._id,
         name: product.name,
-        price: price,
-        image_path: product.images[0],
-        shopId: product.shopId?._id || product.shopId || 'default',
+        price: product.price,
+        discount_percent: product.discount_percent || 0,
+        image_path: product.images?.[0] || product.imagePath,
+        images: product.images || [],
+        shopId: product.shopId?._id || product.shopId || null,
         shopName: product.shopId?.shopName || product.shopName || '',
+        selectedSize: selectedSize || null,
+        selectedColor: selectedColor || null,
+        sizes: product.sizes || [],
+        colors: product.colors || [],
       });
     }
   };
@@ -135,6 +162,19 @@ const ProductDetails = () => {
       alert(error.response?.data?.message || 'Failed to submit review');
     }
   };
+  
+  const TabButton = ({ tabName, label, count }) => (
+    <button
+      onClick={() => setActiveTab(tabName)}
+      className={`px-3 py-3 text-sm font-bold transition-colors duration-200 ${
+        activeTab === tabName
+          ? 'border-b-2 border-blue-600 text-blue-600'
+          : 'text-slate-500 hover:text-slate-800'
+      }`}
+    >
+      {label} {count !== undefined && <span className="text-xs bg-slate-200 dark:bg-slate-700 rounded-full px-1.5 py-0.5">{count}</span>}
+    </button>
+  );
 
   if (loading) {
     return <div className="flex justify-center items-center h-96"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
@@ -144,49 +184,65 @@ const ProductDetails = () => {
     return <div className="text-center py-20 text-xl font-medium text-gray-600">Product not found</div>;
   }
 
-  const discountPercentage = product.originalPrice ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
-
   return (
-    <div className="bg-gray-100 min-h-screen py-6 px-4 md:px-8">
-      <div className="max-w-[1400px] mx-auto bg-white rounded-sm shadow-sm flex flex-col md:flex-row overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b1220] py-6 px-4 md:px-8 transition-colors duration-300">
+      <div className="max-w-[1400px] mx-auto bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row overflow-hidden relative">
         
+        {/* Glow effect background (hidden on light mode) */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 hidden dark:block">
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px]"></div>
+          <div className="absolute top-[40%] -right-[10%] w-[40%] h-[60%] bg-indigo-600/10 rounded-full blur-[120px]"></div>
+        </div>
+
         {/* Left Side: Images */}
-        <div className="md:w-5/12 p-4 border-r border-gray-100 flex flex-col items-center sticky top-20 h-max">
-          <div className="w-full aspect-square relative mb-4 border border-gray-200 rounded p-4 flex items-center justify-center">
-            <img 
-              src={product.images[activeImage]} 
-              alt={product.name} 
-              className="max-w-full max-h-full object-contain transition-transform duration-300 hover:scale-110"
-            />
+        <div className="md:w-5/12 p-6 md:p-8 flex flex-col items-center sticky top-24 h-max z-10 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800/50">
+          <div className="w-full aspect-square relative mb-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-6 flex items-center justify-center group overflow-hidden border border-slate-100 dark:border-slate-700/50">
+            {product.discount_percent > 0 && (
+              <div className="absolute top-4 left-4 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-black tracking-wider px-3 py-1.5 rounded-full shadow-lg shadow-rose-500/30 z-20">
+                {product.discount_percent}% OFF
+              </div>
+            )}
             <button 
               onClick={handleToggleWishlist}
-              className="absolute top-4 right-4 p-2 rounded-full bg-white shadow border border-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+              className="absolute top-4 right-4 p-2.5 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm shadow-md border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 transition-all duration-300 hover:scale-110 z-20"
             >
-              <Heart className={`w-6 h-6 ${isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart className={`w-5 h-5 transition-colors duration-300 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
             </button>
+            <img 
+              src={imageErrors[activeImage] ? 'https://via.placeholder.com/600?text=Image+Not+Found' : product.images[activeImage]} 
+              alt={product.name} 
+              onError={() => handleImageError(activeImage)}
+              className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110 relative z-10 drop-shadow-xl"
+            />
           </div>
-          <div className="flex gap-2 w-full overflow-x-auto pb-2 justify-center">
+          
+          <div className="flex gap-3 w-full overflow-x-auto pb-2 justify-center scrollbar-hide">
             {product.images.map((img, idx) => (
               <button 
                 key={idx}
                 onClick={() => setActiveImage(idx)}
-                className={`w-16 h-16 border-2 rounded ${activeImage === idx ? 'border-blue-500' : 'border-gray-200'} p-1 flex-shrink-0`}
+                className={`w-16 h-16 rounded-xl overflow-hidden transition-all duration-300 border-2 p-1 ${activeImage === idx ? 'border-blue-600 dark:border-blue-500 scale-110 shadow-lg shadow-blue-500/20' : 'border-transparent bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'} flex-shrink-0`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <img 
+                  src={imageErrors[idx] ? 'https://via.placeholder.com/150?text=...' : img} 
+                  onError={() => handleImageError(idx)}
+                  alt="" 
+                  className="w-full h-full object-cover rounded-lg" 
+                />
               </button>
             ))}
           </div>
           
-          <div className="flex gap-4 w-full mt-6">
+          <div className="flex gap-4 w-full mt-8 relative z-10">
             <button 
               onClick={handleAddToCart}
-              className="flex-1 bg-[#ff9f00] hover:bg-[#f39800] text-white font-semibold py-4 rounded shadow-md flex items-center justify-center gap-2 transition-colors text-lg"
+              className="flex-1 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold py-4 px-2 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-xl shadow-slate-900/20 border border-slate-800 hover:-translate-y-1"
             >
               <ShoppingCart className="w-5 h-5" /> ADD TO CART
             </button>
             <button 
               onClick={() => { handleAddToCart(); navigate('/checkout'); }}
-              className="flex-1 bg-[#fb641b] hover:bg-[#e05a18] text-white font-semibold py-4 rounded shadow-md flex items-center justify-center gap-2 transition-colors text-lg"
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 px-2 rounded-2xl flex items-center justify-center gap-2 transition-all duration-300 shadow-xl shadow-blue-600/30 border border-blue-500 hover:-translate-y-1"
             >
               <Shield className="w-5 h-5" /> BUY NOW
             </button>
@@ -194,135 +250,224 @@ const ProductDetails = () => {
         </div>
 
         {/* Right Side: Details */}
-        <div className="md:w-7/12 p-6 md:p-8">
-          <h1 className="text-2xl font-medium text-gray-900 mb-2">{product.name}</h1>
+        <div className="md:w-7/12 p-6 md:p-10 relative z-10 flex flex-col">
+          <div className="mb-2 flex items-center gap-2">
+             <span className="text-xs font-bold tracking-widest uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 px-2.5 py-1 rounded-md">
+               {product.category || 'Premium'}
+             </span>
+             {product.stock === 0 ? (
+               <span className="text-xs font-bold tracking-widest uppercase text-rose-600 bg-rose-50 dark:bg-rose-500/10 px-2.5 py-1 rounded-md">Out of Stock</span>
+             ) : product.stock <= 5 ? (
+               <span className="text-xs font-bold tracking-widest uppercase text-amber-600 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 rounded-md">Only {product.stock} left</span>
+             ) : (
+               <span className="text-xs font-bold tracking-widest uppercase text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-md">In Stock</span>
+             )}
+          </div>
           
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-green-600 text-white px-2 py-0.5 rounded text-sm font-bold flex items-center gap-1">
-              {product.rating} <Star className="w-3 h-3 fill-white" />
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mb-4 leading-tight">
+            {product.name}
+          </h1>
+          
+          <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-3 py-1 rounded-full text-sm font-bold shadow-md">
+              <Star className="w-3.5 h-3.5 fill-current" /> {product.rating.toFixed(1)}
             </div>
-            <span className="text-gray-500 text-sm font-medium">{product.reviews.length} Ratings & Reviews</span>
+            <a href="#reviews" onClick={(e) => { e.preventDefault(); setActiveTab('reviews'); }} className="text-slate-500 dark:text-slate-400 text-sm font-medium hover:text-blue-600 cursor-pointer transition-colors">
+              Read {product.reviews.length} Reviews
+            </a>
           </div>
 
-          <div className="mb-6">
-            <div className="flex items-end gap-3">
-              <span className="text-3xl font-semibold text-gray-900">₹{product.price.toLocaleString()}</span>
-              {product.originalPrice && (
-                <>
-                  <span className="text-gray-500 line-through text-lg">₹{product.originalPrice.toLocaleString()}</span>
-                  <span className="text-green-600 font-bold text-sm mb-1">{discountPercentage}% off</span>
-                </>
-              )}
-            </div>
+          {/* Mobile Tabs */}
+          <div className="md:hidden border-b border-slate-200 dark:border-slate-700 mb-6">
+            <nav className="-mb-px flex space-x-4" aria-label="Tabs">
+              <TabButton tabName="details" label="Details" />
+              <TabButton tabName="reviews" label="Reviews" count={product.reviews.length} />
+              {relatedProducts.length > 0 && <TabButton tabName="related" label="Related" />}
+            </nav>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-               <RotateCcw className="w-6 h-6 text-blue-500" />
-               <span>7 Days Replacement Policy</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-               <Truck className="w-6 h-6 text-blue-500" />
-               <span>Free Delivery available</span>
-            </div>
-          </div>
-
-          {/* Flipkart-style: seller name only — no separate shop browse */}
-          {(product.shopId?.shopName || product.shopName) && (
-            <div className="mb-6 p-3 bg-slate-50 rounded-lg border border-slate-100">
-              <p className="text-sm text-gray-600">
-                Sold by{' '}
-                <span className="font-semibold text-slate-900">
-                  {product.shopId?.shopName || product.shopName}
+          <div className={`${activeTab === 'details' ? 'block' : 'hidden'} md:block`}>
+            <div className="mb-8">
+              <div className="flex items-end gap-3 flex-wrap">
+                <span className="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
+                  ₹{product.price.toLocaleString()}
                 </span>
-              </p>
-              <p className="text-xs text-emerald-600 mt-0.5">✓ Genuine product · Platform protected</p>
+                {product.originalPrice && product.originalPrice > product.price && (
+                  <div className="flex flex-col mb-1.5">
+                    <span className="text-slate-400 line-through text-lg font-medium">₹{product.originalPrice.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Inclusive of all taxes</p>
             </div>
-          )}
 
-          <div className="border-t border-gray-200 pt-6 mb-8">
-            <h2 className="text-lg font-semibold mb-3 text-gray-800">Product Description</h2>
-            <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-              {product.description}
-            </p>
+            {(product.colors?.length > 0 || product.sizes?.length > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-8">
+                {product.colors?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 uppercase tracking-wider">Color</h3>
+                    <div className="flex gap-3">
+                      {product.colors.map((color, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedColor(color)}
+                          style={{ backgroundColor: color }}
+                          className={`w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center border border-slate-200 dark:border-slate-700 ${selectedColor === color ? 'ring-2 ring-offset-2 ring-blue-600 dark:ring-offset-slate-900 scale-110 shadow-lg' : 'opacity-70 hover:opacity-100 hover:scale-105'}`}
+                          title={color}
+                        >
+                          {selectedColor === color && <Check className="w-5 h-5 text-white mix-blend-difference" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {product.sizes?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3 uppercase tracking-wider">Size</h3>
+                    <div className="flex gap-2">
+                      {product.sizes.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(size)}
+                          className={`w-12 h-10 rounded-xl font-bold text-sm transition-all duration-200 ${selectedSize === size ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md scale-105' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4 mb-8 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/50">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                   <RotateCcw className="w-5 h-5" />
+                 </div>
+                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">7 Days<br/>Return</span>
+              </div>
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                   <Truck className="w-5 h-5" />
+                 </div>
+                 <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Free<br/>Delivery</span>
+              </div>
+            </div>
+
+            {(product.shopId?.shopName || product.shopName) && (
+              <div className="mb-8 p-4 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-800/20 rounded-2xl border border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Sold by</p>
+                  <p className="font-bold text-slate-900 dark:text-white text-lg">
+                    {product.shopId?.shopName || product.shopName}
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-emerald-500" />
+                </div>
+              </div>
+            )}
+
+            <div className="mb-10">
+              <h2 className="text-lg font-bold mb-4 text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-blue-600 rounded-full"></span>
+                Description
+              </h2>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line text-[15px]">
+                  {product.description || "No description provided for this premium product. Contact the seller for more details."}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Reviews Section */}
-          <div className="border-t border-gray-200 pt-6">
-            <h2 className="text-xl font-bold mb-6 text-gray-800 flex items-center justify-between">
+          <div id="reviews" className={`${activeTab === 'reviews' ? 'block' : 'hidden'} md:block mt-auto border-t border-slate-100 dark:border-slate-800 pt-10`}>
+            <h2 className="text-lg font-bold mb-6 text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
               Ratings & Reviews
             </h2>
 
-            {/* Submit Review */}
             {user ? (
-              <form onSubmit={handleReviewSubmit} className="mb-8 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <h3 className="font-semibold text-gray-700 mb-3">Rate this product</h3>
-                <div className="flex items-center gap-2 mb-4">
+              <form onSubmit={handleReviewSubmit} className="mb-10 bg-slate-50 dark:bg-slate-800/30 p-6 rounded-2xl border border-slate-100 dark:border-slate-700/50 transition-all hover:shadow-md">
+                <h3 className="font-bold text-slate-800 dark:text-white mb-4">Share your experience</h3>
+                <div className="flex items-center gap-1.5 mb-5">
                   {[1, 2, 3, 4, 5].map(star => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setRating(star)}
-                      className="focus:outline-none"
+                      className="focus:outline-none transform transition hover:scale-110"
                     >
-                      <Star className={`w-8 h-8 ${star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                      <Star className={`w-8 h-8 ${star <= rating ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]' : 'text-slate-300 dark:text-slate-600'}`} />
                     </button>
                   ))}
                 </div>
                 <textarea
-                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none mb-3"
+                  className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none mb-4 text-sm text-slate-700 dark:text-slate-200 shadow-inner"
                   rows="3"
-                  placeholder="Description..."
+                  placeholder="What did you like or dislike?"
                   value={reviewText}
                   onChange={(e) => setReviewText(e.target.value)}
                   required
                 ></textarea>
                 <button 
                   type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-colors shadow-lg shadow-blue-600/20"
                 >
-                  Submit Review
+                  Post Review
                 </button>
               </form>
             ) : (
-              <div className="mb-8 p-4 bg-yellow-50 text-yellow-800 rounded-md text-sm">
-                Please <span className="font-bold underline cursor-pointer" onClick={() => navigate('/login')}>log in</span> to write a review.
+              <div className="mb-10 p-5 bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-500 rounded-2xl text-sm flex items-center gap-3 border border-amber-200 dark:border-amber-500/20">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <p>Please <span className="font-bold underline cursor-pointer hover:text-amber-900 dark:hover:text-amber-400" onClick={() => navigate('/login')}>log in</span> to write a review and share your thoughts.</p>
               </div>
             )}
 
-            {/* List Reviews */}
-            <div className="space-y-6">
-              {product.reviews.map((review, idx) => (
-                <div key={idx} className="border-b border-gray-100 pb-6 last:border-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`text-white px-1.5 py-0.5 rounded text-xs font-bold flex items-center gap-1 ${review.rating >= 4 ? 'bg-green-600' : review.rating >= 3 ? 'bg-yellow-500' : 'bg-red-500'}`}>
-                      {review.rating} <Star className="w-2.5 h-2.5 fill-white" />
+            <div className="space-y-4">
+              {product.reviews.length === 0 ? (
+                <p className="text-slate-500 dark:text-slate-400 text-sm italic py-4">No reviews yet. Be the first to review!</p>
+              ) : (
+                product.reviews.map((review, idx) => (
+                  <div key={idx} className="bg-white dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`text-white px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm ${review.rating >= 4 ? 'bg-emerald-500' : review.rating >= 3 ? 'bg-amber-500' : 'bg-rose-500'}`}>
+                        {review.rating} <Star className="w-3 h-3 fill-white" />
+                      </div>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">{review.user || review.name}</span>
+                      <span className="text-xs text-slate-400 ml-auto flex items-center gap-1">
+                        <Check className="w-3 h-3 text-emerald-500" /> Verified
+                      </span>
                     </div>
-                    <p className="font-medium text-gray-800 text-sm">{review.comment}</p>
+                    <p className="text-slate-600 dark:text-slate-300 text-[15px] leading-relaxed">{review.comment}</p>
+                    <div className="text-xs text-slate-400 mt-3 pt-3 border-t border-slate-50 dark:border-slate-700/50">
+                      Posted on {review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : review.date}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
-                    <span className="font-semibold text-gray-700">{review.user || review.name}</span>
-                    <span>{review.createdAt ? new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : review.date}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
-          
         </div>
       </div>
       
       {/* Related Products Section */}
-      {relatedProducts.length > 0 && (
-        <div className="max-w-[1400px] mx-auto mt-12 bg-white rounded-sm shadow-sm p-6">
-          <h2 className="text-xl font-bold mb-6 text-gray-800">Similar Items</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {relatedProducts.map((prod, index) => (
-              <ProductCard key={prod._id} product={prod} index={index} />
-            ))}
-          </div>
-        </div>
-      )}
+      <div className={`${activeTab === 'related' ? 'block' : 'hidden'} md:block max-w-[1400px] mx-auto mt-12 mb-8`}>
+        {relatedProducts.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">You might also like</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {relatedProducts.map((prod, index) => (
+                <ProductCard key={prod._id} product={prod} index={index} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

@@ -7,7 +7,13 @@ const Product = require('../models/Product');
  * @access  Public
  */
 exports.getProducts = asyncHandler(async (req, res) => {
-  const filter = {};
+  // First, find all shops that are active and online
+  const activeShops = await require('../models/Shop').find({ isActive: true, isOnline: true }).select('_id');
+  const activeShopIds = activeShops.map(shop => shop._id);
+
+  const filter = {
+    shopId: { $in: activeShopIds } // Only products from active shops
+  };
   const search = req.query.search || req.query.keyword || '';
 
   if (req.query.tag) {
@@ -63,7 +69,7 @@ exports.getProductById = asyncHandler(async (req, res) => {
     .populate('shopId', 'shopName address isOnline isActive')
     .populate('categoryId', 'name');
 
-  if (!product) {
+  if (!product || !product.shopId || !product.shopId.isActive || !product.shopId.isOnline) {
     res.status(404);
     throw new Error('Product not found');
   }
@@ -86,9 +92,14 @@ exports.getRelatedProducts = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
+  // First, find all shops that are active and online
+  const activeShops = await require('../models/Shop').find({ isActive: true, isOnline: true }).select('_id');
+  const activeShopIds = activeShops.map(shop => shop._id);
+
   const related = await Product.find({
     categoryId: product.categoryId,
-    _id: { $ne: product._id }
+    _id: { $ne: product._id },
+    shopId: { $in: activeShopIds } // Only from active shops
   })
     .populate('shopId', 'shopName isOnline isActive')
     .limit(8)

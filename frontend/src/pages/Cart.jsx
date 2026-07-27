@@ -47,8 +47,6 @@ const Cart = () => {
   const deliveryFee = subtotal >= freeDeliveryAt ? 0 : 40;
   const total = subtotal + deliveryFee;
 
-  const productId = (item) => item.product._id || item.product.id;
-
   const handleCheckout = () => {
     // Pass selected items to checkout page via state
     navigate('/checkout', { state: { checkoutItems: selectedItems } });
@@ -78,11 +76,10 @@ const Cart = () => {
           </div>
 
           {cartItems.map((item) => {
-            const id = productId(item);
             const img = getProductImage(item.product);
             return (
               <div
-                key={id}
+                key={item.cartItemId}
                 className={`card-surface p-4 flex gap-4 transition-colors ${!item.selected ? 'bg-slate-50' : ''}`}
               >
                 <div className="flex-shrink-0 pt-1">
@@ -90,7 +87,7 @@ const Cart = () => {
                     type="checkbox" 
                     className="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     checked={item.selected}
-                    onChange={() => toggleItemSelection(id)}
+                    onChange={() => toggleItemSelection(item.cartItemId)}
                   />
                 </div>
                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0 border border-slate-100">
@@ -114,7 +111,7 @@ const Cart = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeFromCart(id)}
+                      onClick={() => removeFromCart(item.cartItemId)}
                       className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -135,7 +132,7 @@ const Cart = () => {
                     <div className="flex items-center bg-slate-100 rounded-xl border border-slate-200">
                       <button
                         type="button"
-                        onClick={() => updateQuantity(id, -1)}
+                        onClick={() => updateQuantity(item.cartItemId, -1)}
                         className="w-9 h-9 flex items-center justify-center text-slate-600 hover:text-blue-600"
                       >
                         <Minus className="w-3.5 h-3.5" />
@@ -143,7 +140,7 @@ const Cart = () => {
                       <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
                       <button
                         type="button"
-                        onClick={() => updateQuantity(id, 1)}
+                        onClick={() => updateQuantity(item.cartItemId, 1)}
                         className="w-9 h-9 flex items-center justify-center text-slate-600 hover:text-blue-600"
                       >
                         <Plus className="w-3.5 h-3.5" />

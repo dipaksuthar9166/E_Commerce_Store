@@ -6,19 +6,22 @@ import {
   ShoppingBag,
   IndianRupee,
   Mail,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/axios';
 
 const VendorCustomers = () => {
   const [orders, setOrders] = useState([]);
+  const [blockedCustomerIds, setBlockedCustomerIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     const load = async () => {
       try {
-        const { data } = await api.get('/vendor/orders');
-        setOrders(Array.isArray(data) ? data : []);
+        const { data: ordersData } = await api.get('/vendor/orders');
+        setOrders(ordersData?.orders || []);
+        setBlockedCustomerIds(new Set(ordersData?.blockedCustomerIds || []));
       } catch (err) {
         console.error('Failed to load customers', err);
       } finally {
@@ -32,7 +35,13 @@ const VendorCustomers = () => {
     const map = new Map();
     orders.forEach((order) => {
       const user = order.userId;
-      const key = user?._id || user?.email || order._id;
+      if (!user?._id) return; // Skip if user or user ID is missing
+
+      const key = user._id;
+
+      // This logic is now handled by the API, but we keep it for optimistic updates
+      // if (blockedCustomerIds.has(key)) return;
+
       const name = user?.name || 'Customer';
       const email = user?.email || '—';
       const amount = order.totalAmount || 0;
@@ -59,13 +68,35 @@ const VendorCustomers = () => {
       }
     });
     return Array.from(map.values()).sort((a, b) => b.totalSpent - a.totalSpent);
-  }, [orders]);
+  }, [orders, blockedCustomerIds]);
+
+  const handleDeleteCustomer = async (customerId) => {
+    if (!window.confirm('Are you sure you want to block this customer? They will not be able to order from your shop.')) {
+      return;
+    }
+
+    try {
+      // Optimistically update the UI
+      setBlockedCustomerIds(prev => new Set(prev).add(customerId));
+      await api.put(`/vendor/customers/${customerId}/block`);
+      // If successful, the state is already correct.
+    } catch (err) {
+      console.error('Failed to block customer', err);
+      // If the API call fails, revert the UI change
+      setBlockedCustomerIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(customerId);
+        return newSet;
+      });
+      // You could show an error toast here
+    }
+  };
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return customers;
     return customers.filter(
-      (c) => c.name.toLowerCase().includes(term) || c.email.toLowerCase().includes(term)
+      (c) => c.name.toLowerCase().includes(term) || c.email?.toLowerCase().includes(term)
     );
   }, [customers, search]);
 
@@ -152,6 +183,7 @@ const VendorCustomers = () => {
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Orders</th>
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Total spent</th>
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Last order</th>
+                  <th className="px-5 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -190,6 +222,15 @@ const VendorCustomers = () => {
                           })
                         : '—'}
                     </td>
+                    <td className="px-5 py-3.5 text-center">
+                        <button
+                            onClick={() => handleDeleteCustomer(c.id)}
+                            className="text-gray-400 hover:text-red-600 p-2 rounded-md transition-colors"
+                            title="Block this customer from your shop"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -198,7 +239,6 @@ const VendorCustomers = () => {
         )}
       </div>
     </div>
-  );
-};
-
+    );
+  };
 export default VendorCustomers;

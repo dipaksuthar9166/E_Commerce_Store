@@ -7,6 +7,7 @@ const { generateAndStoreImage } = require('../services/aiImageService');
 const { lookupBarcode, cleanBarcode } = require('../services/barcodeLookupService');
 const xlsx = require('xlsx');
 const { uploadBufferToS3 } = require('../services/uploadService');
+const { emitOrderStatusUpdated } = require('../utils/orderSocket');
 
 
 const COMMISSION_RATE = 0.1;
@@ -351,7 +352,8 @@ exports.addVendorProduct = async (req, res) => {
       description,
       categoryId,
       categoryName,
-      color,
+      sizes,
+      colors,
       barcode,
       imagePath: providedImage,
       skipAiImage,
@@ -390,7 +392,7 @@ exports.addVendorProduct = async (req, res) => {
     let finalImage = (providedImage && String(providedImage).trim()) || '';
     if (!finalImage && !skipAiImage) {
       try {
-        const prompt = generateProductPrompt(name, color, resolvedCategory?.name);
+        const prompt = generateProductPrompt(name, colors ? colors[0] : '', resolvedCategory?.name);
         finalImage = await generateAndStoreImage(prompt);
       } catch (imgErr) {
         console.warn('AI image skipped:', imgErr.message);
@@ -405,7 +407,8 @@ exports.addVendorProduct = async (req, res) => {
       shopId: shop._id,
       name,
       price: Number(price),
-      color: color || '',
+      sizes: sizes ? (Array.isArray(sizes) ? sizes : sizes.split(',').map(s => s.trim())) : [],
+      colors: colors ? (Array.isArray(colors) ? colors : colors.split(',').map(c => c.trim())) : [],
       stock: stock !== undefined && stock !== '' ? Number(stock) : 0,
       description: description || '',
       barcode: barcodeValue || '',
@@ -448,11 +451,7 @@ exports.updateProduct = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this product' });
     }
 
-    const { name, price, stock, description, barcode, categoryId, imagePath, color } = req.body;
-
-    // NOTE: Image regeneration on update is not included in this scaffold.
-    // The original imagePath from the request will be used if provided.
-    // You could add logic here to regenerate the image if name or color changes.
+    const { name, price, stock, description, barcode, categoryId, imagePath, colors, sizes } = req.body;
 
     product.name = name ?? product.name;
     product.price = price ?? product.price;
@@ -461,7 +460,13 @@ exports.updateProduct = async (req, res) => {
     product.barcode = barcode ?? product.barcode;
     product.categoryId = categoryId || undefined;
     product.imagePath = imagePath ?? product.imagePath;
-    product.color = color ?? product.color; // Assuming 'color' field exists
+
+    if (sizes !== undefined) {
+      product.sizes = Array.isArray(sizes) ? sizes : String(sizes).split(',').map(s => s.trim());
+    }
+    if (colors !== undefined) {
+      product.colors = Array.isArray(colors) ? colors : String(colors).split(',').map(c => c.trim());
+    }
 
     const updatedProduct = await product.save();
 
@@ -491,13 +496,43 @@ exports.getVendorOrders = async (req, res) => {
       .populate('items.productId', 'name imagePath price')
       .sort({ createdAt: -1 });
 
-    res.status(200).json(orders);
+    res.status(200).json({
+        orders,
+        blockedCustomerIds: shop.blockedCustomerIds || []
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
-// @desc    Update order status (accept / reject)
+// @desc    Block a customer from a vendor's shop
+// @route   PUT /api/vendor/customers/:userId/block
+// @access  Private (vendor)
+exports.blockCustomer = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) {
+      return res.status(404).json({ message: 'No shop found for this vendor' });
+    }
+
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ message: 'Customer user ID is required' });
+    }
+
+    // Add customer to blocked list if not already there
+    if (!shop.blockedCustomerIds.includes(userId)) {
+      shop.blockedCustomerIds.push(userId);
+      await shop.save();
+    }
+
+    res.status(200).json({ message: 'Customer has been blocked successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Update order status (accept / reject / cancel)
 // @route   PUT /api/vendor/orders/:id/status
 // @access  Private (vendor)
 exports.updateOrderStatus = async (req, res) => {
@@ -514,21 +549,40 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: 'No shop found for this vendor' });
     }
 
-    const order = await Order.findOneAndUpdate(
-      { _id: req.params.id, shopId: shop._id },
-      { status },
-      { new: true }
-    );
+    // Find the order first to check its state before updating
+    const order = await Order.findOne({ _id: req.params.id, shopId: shop._id });
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found or does not belong to your shop' });
     }
 
-    // Emit real-time event to the shop's room
+    // If cancelling, restore stock
+    if (status === 'cancelled' && order.status !== 'cancelled') {
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+      }
+    }
+
+    // Update the order status
+    order.status = status;
+    // Add a timeline event for the cancellation
+    if (status === 'cancelled') {
+        order.timeline.push({ status: 'cancelled', description: 'Order cancelled by vendor' });
+    }
+    await order.save();
+
+
+    // Emit real-time event to shop + customer Orders page
     const io = req.app.get('io');
     if (io) {
-      io.to(`shop_${shop._id}`).emit('orderStatusUpdated', order);
-      
+      const populatedOrder = await Order.findById(order._id)
+          .populate('userId', 'name email phone')
+          .populate('items.productId', 'name imagePath price discount_percent')
+          .populate('shopId', 'shopName address')
+          .populate('deliveryBoyId', 'name phone');
+
+      emitOrderStatusUpdated(io, order, populatedOrder);
+
       // If vendor marks order as ready, make it available to all riders
       if (status === 'ready_for_pickup') {
         const populatedOrderForRider = await Order.findById(order._id)
@@ -550,6 +604,115 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Approve or reject a return/exchange request
+// @route   PUT /api/vendor/orders/:id/return
+// @access  Private (vendor)
+exports.updateReturnStatus = async (req, res) => {
+  try {
+    const action = String(req.body?.action || req.body?.status || '').toLowerCase();
+    const allowedActions = ['approve', 'reject', 'approved', 'rejected'];
+    if (!allowedActions.includes(action)) {
+      return res.status(400).json({
+        message: 'Invalid action. Use "approve" or "reject".',
+      });
+    }
+
+    const isApprove = action === 'approve' || action === 'approved';
+
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) {
+      return res.status(404).json({ message: 'No shop found for this vendor' });
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, shopId: shop._id });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found or does not belong to your shop' });
+    }
+
+    if (order.status !== 'return_requested') {
+      return res.status(400).json({ message: 'Order does not have a pending return request' });
+    }
+
+    if (!order.returnRequest || order.returnRequest.status !== 'requested') {
+      return res.status(400).json({ message: 'No pending return/exchange request to process' });
+    }
+
+    const requestType = order.returnRequest.requestType || 'return';
+
+    if (isApprove) {
+      order.returnRequest.status = 'approved';
+      order.returnRequest.resolvedAt = new Date();
+      order.status = 'returned';
+      order.timeline.push({
+        status: 'returned',
+        description: `${requestType === 'exchange' ? 'Exchange' : 'Return'} approved by vendor`,
+      });
+
+      // Restock returned items
+      for (const item of order.items) {
+        if (item.productId) {
+          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
+        }
+      }
+
+      // Complete refund if one was pending
+      if (order.refund?.status === 'pending' || order.paymentStatus === 'refund_pending') {
+        order.refund = {
+          ...(order.refund?.toObject?.() || order.refund || {}),
+          status: 'completed',
+          amount: order.refund?.amount || order.totalAmount,
+          method: order.refund?.method || 'original',
+          initiatedAt: order.refund?.initiatedAt || new Date(),
+          completedAt: new Date(),
+          note: order.refund?.note || 'Refund completed after return approval.',
+        };
+        order.paymentStatus = 'refunded';
+      }
+    } else {
+      order.returnRequest.status = 'rejected';
+      order.returnRequest.resolvedAt = new Date();
+      order.status = 'delivered';
+      order.timeline.push({
+        status: 'delivered',
+        description: `${requestType === 'exchange' ? 'Exchange' : 'Return'} rejected by vendor`,
+      });
+
+      // Cancel pending refund
+      if (order.refund?.status === 'pending' || order.paymentStatus === 'refund_pending') {
+        order.refund = {
+          ...(order.refund?.toObject?.() || order.refund || {}),
+          status: 'failed',
+          completedAt: new Date(),
+          note: 'Refund cancelled because return was rejected.',
+        };
+        order.paymentStatus = 'paid';
+      }
+    }
+
+    await order.save();
+
+    const populatedOrder = await Order.findById(order._id)
+      .populate('userId', 'name email phone')
+      .populate('items.productId', 'name imagePath price discount_percent')
+      .populate('shopId', 'shopName address')
+      .populate('deliveryBoyId', 'name phone');
+
+    const io = req.app.get('io');
+    if (io) {
+      emitOrderStatusUpdated(io, order, populatedOrder);
+    }
+
+    res.status(200).json({
+      message: isApprove
+        ? `${requestType === 'exchange' ? 'Exchange' : 'Return'} approved`
+        : `${requestType === 'exchange' ? 'Exchange' : 'Return'} rejected`,
+      order: populatedOrder,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

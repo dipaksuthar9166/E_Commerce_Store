@@ -1,66 +1,108 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import api from '../api/axios';
+import { getSocketBaseUrl } from '../utils/apiBase';
 
 const SocketContext = createContext();
 
 export const useSocket = () => useContext(SocketContext);
 
-/** Derive Socket.IO origin from env or from VITE_API_URL (strip /api). */
-function getSocketUrl() {
-  if (import.meta.env.VITE_SOCKET_URL) {
-    return import.meta.env.VITE_SOCKET_URL.replace(/\/+$/, '');
-  }
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  return apiUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '') || 'http://localhost:5000';
-}
-
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState(null);
+  const [connected, setConnected] = useState(false);
   const [shopId, setShopId] = useState(null);
+  const shopIdRef = useRef(null);
 
   useEffect(() => {
-    // Only connect if user is logged in
-    if (!user) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-      }
-      return;
+    shopIdRef.current = shopId;
+  }, [shopId]);
+
+  useEffect(() => {
+    if (!user?._id) {
+      setSocket((prev) => {
+        if (prev) prev.disconnect();
+        return null;
+      });
+      setConnected(false);
+      setShopId(null);
+      return undefined;
     }
 
-    const newSocket = io(getSocketUrl(), {
+    const userId = String(user._id);
+    const newSocket = io(getSocketBaseUrl(), {
       transports: ['websocket', 'polling'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 800,
+      reconnectionDelayMax: 5000,
     });
 
-    setSocket(newSocket);
+    const joinRooms = () => {
+      // Personal room — customer live order status (Orders page)
+      newSocket.emit('joinUserRoom', userId);
 
-    // Vendor: join shop room for live order alerts
+      // Vendor shop room
+      if (user.role === 'vendor' && shopIdRef.current) {
+        newSocket.emit('joinShopRoom', shopIdRef.current);
+      }
+    };
+
+    newSocket.on('connect', () => {
+      setConnected(true);
+      joinRooms();
+      console.log('[socket] connected', newSocket.id, '→ user_' + userId);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      setConnected(false);
+      console.log('[socket] disconnected', reason);
+    });
+
+    newSocket.on('reconnect', () => {
+      setConnected(true);
+      joinRooms();
+      console.log('[socket] reconnected — rooms re-joined');
+    });
+
+    // Vendor: resolve shop id then join (also re-join on later connect via shopIdRef)
     if (user.role === 'vendor') {
-      const fetchShopAndJoinRoom = async () => {
+      (async () => {
         try {
           const { data } = await api.get('/vendor/dashboard');
-          if (data.shop && data.shop._id) {
-            setShopId(data.shop._id);
-            newSocket.emit('joinShopRoom', data.shop._id);
+          if (data.shop?._id) {
+            const id = data.shop._id;
+            setShopId(id);
+            shopIdRef.current = id;
+            if (newSocket.connected) {
+              newSocket.emit('joinShopRoom', id);
+            }
           }
         } catch (error) {
           console.error('Failed to fetch shop for socket connection', error);
         }
-      };
-      fetchShopAndJoinRoom();
+      })();
     }
 
+    // If already connected by the time listeners attach
+    if (newSocket.connected) {
+      setConnected(true);
+      joinRooms();
+    }
+
+    setSocket(newSocket);
+
     return () => {
+      newSocket.removeAllListeners();
       newSocket.disconnect();
+      setConnected(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reconnect only when user changes
-  }, [user]);
+  }, [user?._id, user?.role]);
 
   return (
-    <SocketContext.Provider value={{ socket, shopId }}>
+    <SocketContext.Provider value={{ socket, shopId, connected }}>
       {children}
     </SocketContext.Provider>
   );

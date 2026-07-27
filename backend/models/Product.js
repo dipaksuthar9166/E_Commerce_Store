@@ -13,8 +13,13 @@ const productSchema = new mongoose.Schema({
   description: {
     type: String,
   },
-  color: {
-    type: String,
+  sizes: {
+    type: [String],
+    default: []
+  },
+  colors: {
+    type: [String],
+    default: []
   },
   price: {
     type: Number,
@@ -56,6 +61,7 @@ const productSchema = new mongoose.Schema({
     name: { type: String, required: true },
     rating: { type: Number, required: true },
     comment: { type: String, required: true },
+    images: [{ type: String }],
     vendorReply: { type: String },
     createdAt: { type: Date, default: Date.now }
   }],

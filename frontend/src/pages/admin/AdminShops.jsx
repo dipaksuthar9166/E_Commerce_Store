@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
   Store,
   Search,
@@ -10,6 +9,7 @@ import {
   Package,
   Loader2,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -66,6 +66,21 @@ const AdminShops = () => {
       );
     } catch (err) {
       console.error('Failed to update shop status', err);
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [shopId]: false }));
+    }
+  };
+
+  const handleDeleteShop = async (shopId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this shop and all its products? This action cannot be undone.')) {
+      return;
+    }
+    setActionLoading((prev) => ({ ...prev, [shopId]: true }));
+    try {
+      await api.delete(`/admin/shops/${shopId}`);
+      setShops((prev) => prev.filter((s) => s._id !== shopId));
+    } catch (err) {
+      console.error('Failed to delete shop', err);
     } finally {
       setActionLoading((prev) => ({ ...prev, [shopId]: false }));
     }
@@ -258,15 +273,13 @@ const AdminShops = () => {
                             </button>
                           </>
                         )}
-                        {shop.isActive && (
-                          <button
-                            onClick={() => handleStatusChange(shop._id, true)}
-                            title="Already Active"
-                            className="flex items-center gap-1 bg-slate-700 hover:bg-emerald-700 text-slate-300 hover:text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors"
-                          >
-                            <ShieldCheck size={12} /> Active
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteShop(shop._id)}
+                          title="Delete Shop"
+                          className="flex items-center gap-1 bg-red-900/80 hover:bg-red-700 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </td>
                   </tr>

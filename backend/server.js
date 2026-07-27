@@ -12,6 +12,7 @@ const vendorRoutes = require('./routes/vendorRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const deliveryRoutes = require('./routes/deliveryRoutes');
+const User = require('./models/User'); // Assuming this is your User model
 const bannerRoutes = require('./routes/bannerRoutes');
 const productRoutes = require('./routes/productRoutes');
 const couponRoutes = require('./routes/couponRoutes');
@@ -21,15 +22,13 @@ const server = http.createServer(app);
 
 // Allow local dev + production frontend URLs for CORS / Socket.IO
 // FRONTEND_URL = primary, FRONTEND_URLS = comma-separated extras (Vercel previews etc.)
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  ...(process.env.FRONTEND_URLS || '').split(',').map((s) => s.trim()),
-  'https://e-commerce-store-eta-lovat.vercel.app',
+const baseAllowedOrigins = [
+  process.env.FRONTEND_URL, // Your primary Vercel/production URL
   'http://localhost:5173',
   'http://localhost:4173',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:4173',
-].filter(Boolean);
+];
+
+const allowedOrigins = [...baseAllowedOrigins, ...(process.env.FRONTEND_URLS || '').split(',').filter(Boolean).map(s => s.trim())];
 
 function isOriginAllowed(origin) {
   if (!origin) return true; // Postman / mobile / same-origin
@@ -38,8 +37,9 @@ function isOriginAllowed(origin) {
   if (/^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?$/.test(origin)) {
     return true;
   }
-  // Vercel production + preview deployments for this project
-  if (/^https:\/\/e-commerce-store[a-z0-9-]*\.vercel\.app$/.test(origin)) {
+  // Allow Vercel preview deployments for specific projects
+  const vercelPreviewRegex = /https:\/\/e-commerce-store[a-z0-9-]*\.vercel\.app$/;
+  if (vercelPreviewRegex.test(origin)) {
     return true;
   }
   // Allow onlinekirana.vercel.app
@@ -77,8 +77,61 @@ io.on('connection', (socket) => {
 
   // Vendor joins their specific shop room
   socket.on('joinShopRoom', (shopId) => {
-    socket.join(`shop_${shopId}`);
-    console.log(`Socket ${socket.id} joined room shop_${shopId}`);
+    if (!shopId) return;
+    const room = `shop_${String(shopId)}`;
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined room ${room}`);
+  });
+
+  // Customer joins personal room for live order status updates
+  socket.on('joinUserRoom', (userId) => {
+    if (!userId) return;
+    const room = `user_${String(userId)}`;
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined ${room}`);
+  });
+
+  // Customer joins order tracking room (live rider map)
+  socket.on('joinOrderTrack', (orderId) => {
+    if (!orderId) return;
+    const room = `order_track_${String(orderId)}`;
+    socket.join(room);
+    console.log(`Socket ${socket.id} joined ${room}`);
+  });
+
+  socket.on('leaveOrderTrack', (orderId) => {
+    if (!orderId) return;
+    socket.leave(`order_track_${String(orderId)}`);
+  });
+
+  // Delivery partner sends location updates
+  socket.on('updateLocation', async (data) => {
+    const { orderId, lat, lng, deliveryBoyId } = data || {};
+    if (orderId == null || lat == null || lng == null) return;
+
+    const oid = String(orderId);
+    console.log(`Location update for Order ${oid} from Delivery Boy ${deliveryBoyId}: ${lat}, ${lng}`);
+
+    // Save the last known location to the User model
+    if (deliveryBoyId && lat && lng) {
+      try {
+        await User.findByIdAndUpdate(deliveryBoyId, {
+          'lastLocation.type': 'Point',
+          'lastLocation.coordinates': [lng, lat], // [longitude, latitude]
+          'lastLocation.lastUpdated': new Date(),
+        });
+      } catch (error) {
+        console.error('Error updating delivery partner location:', error);
+      }
+    }
+
+    // Broadcast to customers tracking this order
+    io.to(`order_track_${oid}`).emit('deliveryLocationUpdated', {
+      orderId: oid,
+      lat: Number(lat),
+      lng: Number(lng),
+      at: new Date().toISOString(),
+    });
   });
 
   socket.on('disconnect', () => {
@@ -116,8 +169,30 @@ mongoose
     console.log('MongoDB Connected');
 
     server.listen(PORT, '0.0.0.0', () => {
+      // Show real LAN IPs so phone testing is easy
+      let lanLines = '';
+      try {
+        const os = require('os');
+        const nets = os.networkInterfaces();
+        const ips = [];
+        for (const name of Object.keys(nets)) {
+          for (const net of nets[name] || []) {
+            if (net.family === 'IPv4' && !net.internal) ips.push(net.address);
+          }
+        }
+        if (ips.length) {
+          lanLines = ips.map((ip) => `  Phone/API: http://${ip}:${PORT}`).join('\n');
+        }
+      } catch {
+        // ignore
+      }
+
       console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`LAN access: http://<YOUR_LAPTOP_IP>:${PORT}`);
+      if (lanLines) {
+        console.log('LAN (same Wi‑Fi — use this IP in the phone browser for frontend):\n' + lanLines);
+      } else {
+        console.log(`LAN access: http://<YOUR_PC_IP>:${PORT}`);
+      }
     });
   })
   .catch((err) => {

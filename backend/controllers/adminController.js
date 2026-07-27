@@ -263,11 +263,75 @@ exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
       .populate('userId', 'name email')
-      .populate('shopId', 'shopName')
       .populate('deliveryBoyId', 'name')
-      .sort({ createdAt: -1 });
-      
-    res.status(200).json(orders);
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const shopIds = [...new Set(orders.map(o => o.shopId).filter(Boolean))];
+    const shops = await Shop.find({ _id: { $in: shopIds } }).select('shopName').lean();
+    const shopMap = new Map(shops.map(s => [s._id.toString(), s]));
+
+    const populatedOrders = orders.map(order => {
+      const shop = order.shopId ? shopMap.get(order.shopId.toString()) : null;
+      return {
+        ...order,
+        shopId: shop
+      };
+    });
+
+    res.status(200).json(populatedOrders);
+  } catch (error) {
+    console.error('Error in getAllOrders:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Delete a shop and its products
+// @route   DELETE /api/admin/shops/:id
+// @access  Private (admin)
+exports.deleteShop = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Delete all products in the shop
+    await Product.deleteMany({ shopId: shop._id });
+
+    // Optional: Revert vendor role to customer
+    if (shop.userId) {
+      await User.findByIdAndUpdate(shop.userId, { role: 'customer' });
+    }
+
+    // Delete the shop
+    await Shop.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ message: 'Shop and all its products have been deleted.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Update an order's status by admin
+// @route   PUT /api/admin/orders/:id/status
+// @access  Private (admin)
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // You might want to add more validation here for what statuses are allowed
+    order.status = status;
+    await order.save();
+    
+    // You could also emit a socket event here to notify the user
+
+    res.status(200).json({ message: 'Order status updated', order });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

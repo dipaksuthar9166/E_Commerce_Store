@@ -73,7 +73,8 @@ const emptyProduct = () => ({
   name: '',
   price: '',
   stock: '1',
-  color: '',
+  colors: '',
+  sizes: '',
   description: '',
   barcode: '',
   categoryId: '',
@@ -146,6 +147,8 @@ const VendorProducts = () => {
       product
         ? {
             ...product,
+            colors: Array.isArray(product.colors) ? product.colors.join(', ') : '',
+            sizes: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
             categoryId: product.categoryId?._id || product.categoryId || '',
             categoryName: product.categoryName || product.categoryId?.name || '',
             autoFilled: false,
@@ -232,7 +235,7 @@ const VendorProducts = () => {
         name: data.name || prev.name,
         description: data.description || prev.description,
         imagePath: data.imagePath || prev.imagePath,
-        color: data.color || prev.color || '',
+        colors: data.color ? [data.color].join(', ') : (prev.colors || ''),
         categoryId,
         categoryName: data.category || prev.categoryName || '',
         autoFilled: true,
@@ -284,7 +287,8 @@ const VendorProducts = () => {
       barcode: editingProduct.barcode,
       categoryId: editingProduct.categoryId || undefined,
       categoryName: !editingProduct.categoryId ? editingProduct.categoryName : undefined,
-      color: editingProduct.color,
+      colors: editingProduct.colors,
+      sizes: editingProduct.sizes,
       imagePath: editingProduct.imagePath || undefined,
       // Skip slow AI when barcode already gave us an image
       skipAiImage: Boolean(editingProduct.imagePath),
@@ -682,18 +686,28 @@ const VendorProducts = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <FormInput
-                  label="Color (optional)"
+                  label="Colors (comma-separated)"
                   icon={Palette}
                   type="text"
-                  placeholder="e.g. red"
-                  value={editingProduct.color || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, color: e.target.value })}
+                  placeholder="e.g. Red, Blue, Green"
+                  value={editingProduct.colors || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, colors: e.target.value })}
                 />
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                <FormInput
+                  label="Sizes (comma-separated)"
+                  icon={Layers}
+                  type="text"
+                  placeholder="e.g. S, M, L, XL"
+                  value={editingProduct.sizes || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, sizes: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Category
-                  </label>
-                  <select
+                </label>
+                <select
                     value={editingProduct.categoryId || ''}
                     onChange={(e) =>
                       setEditingProduct({
@@ -734,7 +748,6 @@ const VendorProducts = () => {
                     </p>
                   )}
                 </div>
-              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">

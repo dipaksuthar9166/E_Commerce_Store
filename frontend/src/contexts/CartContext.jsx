@@ -4,6 +4,14 @@ const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
+// Helper to generate a unique ID for a cart item based on product and variants
+const generateCartItemId = (product, size, color) => {
+  const productId = product._id || product.id;
+  const sizeId = size || 'no-size';
+  const colorId = color || 'no-color';
+  return `${productId}-${sizeId}-${colorId}`;
+};
+
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   
@@ -12,9 +20,16 @@ export const CartProvider = ({ children }) => {
     const savedCart = localStorage.getItem('hyperlocal_cart');
     if (savedCart) {
       try {
-        // Ensure all items have a `selected` property, default to true
+        // Ensure all items have necessary properties
         const parsedCart = JSON.parse(savedCart);
-        const validatedCart = parsedCart.map(item => ({ ...item, selected: typeof item.selected === 'boolean' ? item.selected : true }));
+        const validatedCart = parsedCart.map(item => {
+          const cartItemId = item.cartItemId || generateCartItemId(item.product, item.selectedSize, item.selectedColor);
+          return { 
+            ...item, 
+            cartItemId,
+            selected: typeof item.selected === 'boolean' ? item.selected : true 
+          };
+        });
         setCartItems(validatedCart);
       } catch (e) {
         console.error("Failed to parse cart", e);
@@ -27,7 +42,7 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem('hyperlocal_cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
-  const addToCart = (product) => {
+  const addToCart = (product, qty = 1) => {
     // shopId may be ObjectId string OR populated { _id, shopName } from API
     const rawShop = product.shopId;
     const shopId =
@@ -40,44 +55,105 @@ export const CartProvider = ({ children }) => {
       '';
 
     // Calculate effective price taking discount into account
-    const effectivePrice = product.discount_percent > 0 
-      ? Math.round(product.price * (1 - product.discount_percent / 100)) 
-      : product.price;
+    const effectivePrice = product.discount_percent > 0
+      ? Math.round(product.price * (1 - product.discount_percent / 100))
+      : (product.price ?? product.effectivePrice);
+
+    const selectedSize = product.selectedSize || null;
+    const selectedColor = product.selectedColor || null;
+    const addQty = Math.max(1, Number(qty) || 1);
+    
+    const cartItemId = generateCartItemId(product, selectedSize, selectedColor);
 
     setCartItems(prev => {
-      const existing = prev.find(item => item.product.id === product.id || item.product._id === product._id);
+      const existing = prev.find(item => item.cartItemId === cartItemId);
       if (existing) {
         return prev.map(item =>
-          (item.product.id === product.id || item.product._id === product._id)
-            ? { ...item, quantity: item.quantity + 1, price: effectivePrice, selected: true } // Update price just in case it changed
+          item.cartItemId === cartItemId
+            ? { ...item, quantity: item.quantity + addQty, price: effectivePrice, selected: true }
             : item
         );
       }
       return [...prev, {
+        cartItemId,
         product: { ...product, shopId, shopName },
-        quantity: 1,
+        quantity: addQty,
         price: effectivePrice,
         shopId,
         shopName,
-        selected: true, // Selected by default
+        selectedSize,
+        selectedColor,
+        selected: true,
       }];
     });
   };
 
-  const matchId = (product, productId) =>
-    product._id === productId || product.id === productId;
+  /** Bulk-add from reorder API (single state update) */
+  const addItemsToCart = (items = []) => {
+    if (!items.length) return;
+    setCartItems((prev) => {
+      let next = [...prev];
+      for (const entry of items) {
+        const product = entry.product || entry;
+        const rawShop = product.shopId;
+        const shopId =
+          rawShop && typeof rawShop === 'object'
+            ? rawShop._id || rawShop.id
+            : rawShop;
+        const shopName =
+          product.shopName ||
+          (rawShop && typeof rawShop === 'object' ? rawShop.shopName : '') ||
+          '';
+        const effectivePrice =
+          entry.price ??
+          (product.discount_percent > 0
+            ? Math.round(product.price * (1 - product.discount_percent / 100))
+            : product.price);
+        const selectedSize = entry.selectedSize || product.selectedSize || null;
+        const selectedColor = entry.selectedColor || product.selectedColor || null;
+        const addQty = Math.max(1, Number(entry.quantity) || 1);
+        const pid = product._id || product.id;
+        
+        const cartItemId = generateCartItemId({ id: pid }, selectedSize, selectedColor);
 
-  const removeFromCart = (productId) => {
+        const idx = next.findIndex(item => item.cartItemId === cartItemId);
+
+        if (idx >= 0) {
+          next[idx] = {
+            ...next[idx],
+            quantity: next[idx].quantity + addQty,
+            price: effectivePrice,
+            selected: true,
+          };
+        } else {
+          next.push({
+            cartItemId,
+            product: { ...product, id: pid, _id: pid, shopId, shopName },
+            quantity: addQty,
+            price: effectivePrice,
+            shopId,
+            shopName,
+            selectedSize,
+            selectedColor,
+            selected: true,
+          });
+        }
+      }
+      return next;
+    });
+  };
+
+  const removeFromCart = (cartItemId) => {
     setCartItems((prev) =>
-      prev.filter((item) => !matchId(item.product, productId))
+      prev.filter((item) => item.cartItemId !== cartItemId)
     );
   };
 
-  const updateQuantity = (productId, delta) => {
+  const updateQuantity = (cartItemId, delta) => {
     setCartItems((prev) =>
       prev
         .map((item) => {
-          if (matchId(item.product, productId)) {
+          if (item.cartItemId === cartItemId) {
             const newQ = item.quantity + delta;
             return newQ > 0 ? { ...item, quantity: newQ } : item;
           }
@@ -87,9 +163,9 @@ export const CartProvider = ({ children }) => {
     );
   };
   
-  const toggleItemSelection = (productId) => {
+  const toggleItemSelection = (cartItemId) => {
     setCartItems(prev => prev.map(item => 
-      matchId(item.product, productId) ? { ...item, selected: !item.selected } : item
+      item.cartItemId === cartItemId ? { ...item, selected: !item.selected } : item
     ));
   };
 
@@ -100,8 +176,21 @@ export const CartProvider = ({ children }) => {
     setCartItems(prev => prev.map(item => ({ ...item, selected: !allSelected })));
   };
 
-  const removeItems = (productIds) => {
-    setCartItems(prev => prev.filter(item => !productIds.includes(item.product._id) && !productIds.includes(item.product.id)));
+  const removeItems = (ids = []) => {
+    if (!ids?.length) return;
+    const idSet = new Set(ids.map((id) => String(id)));
+    setCartItems((prev) =>
+      prev.filter((item) => {
+        const cartItemId = item.cartItemId != null ? String(item.cartItemId) : null;
+        const productId = String(
+          item.product?._id || item.product?.id || item.productId || item._id || ''
+        );
+        // Prefer cartItemId match; also accept bare product ids (legacy callers)
+        if (cartItemId && idSet.has(cartItemId)) return false;
+        if (productId && idSet.has(productId)) return false;
+        return true;
+      })
+    );
   };
 
   const clearCart = () => setCartItems([]);
@@ -128,6 +217,7 @@ export const CartProvider = ({ children }) => {
     <CartContext.Provider value={{
       cartItems,
       addToCart,
+      addItemsToCart,
       removeFromCart,
       removeItems,
       updateQuantity,

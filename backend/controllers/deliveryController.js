@@ -1,4 +1,5 @@
 const Order = require('../models/Order');
+const { emitOrderStatusUpdated } = require('../utils/orderSocket');
 
 // @desc    Get all available delivery tasks (orders accepted by shop but not assigned to a rider)
 // @route   GET /api/delivery/tasks
@@ -47,14 +48,15 @@ exports.acceptTask = async (req, res) => {
 
     const populatedOrder = await Order.findById(order._id)
       .populate('shopId', 'shopName address')
-      .populate('userId', 'name email');
+      .populate('userId', 'name email phone')
+      .populate('items.productId', 'name imagePath price discount_percent')
+      .populate('deliveryBoyId', 'name phone');
 
-    // Notify other riders that this task has been taken
+    // Notify other riders + shop + customer (live Orders page)
     const io = req.app.get('io');
     if (io) {
       io.emit('taskTaken', order._id);
-      // Also notify the specific shop room and customer room that order is out for delivery
-      io.to(`shop_${order.shopId}`).emit('orderStatusUpdated', populatedOrder);
+      emitOrderStatusUpdated(io, order, populatedOrder);
     }
 
     res.status(200).json({
@@ -72,35 +74,7 @@ exports.acceptTask = async (req, res) => {
   }
 };
 
-// @desc    Rider marks order as delivered
-// @route   PUT /api/delivery/orders/:id/deliver
-// @access  Private (delivery)
-exports.deliverTask = async (req, res) => {
-  try {
-    const order = await Order.findOne({ _id: req.params.id, deliveryBoyId: req.user._id });
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found or not assigned to you' });
-    }
 
-    order.status = 'delivered';
-    order.paymentStatus = 'paid';
-    await order.save();
-
-    const populatedOrder = await Order.findById(order._id)
-      .populate('shopId', 'shopName address')
-      .populate('userId', 'name email');
-
-    // Notify shop and customer
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`shop_${order.shopId}`).emit('orderStatusUpdated', populatedOrder);
-    }
-
-    res.status(200).json({ message: 'Order delivered successfully', order: populatedOrder });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-};
 
 // @desc    Get rider statistics (earnings, delivery count, etc.)
 // @route   GET /api/delivery/stats
@@ -113,14 +87,18 @@ exports.getRiderStats = async (req, res) => {
 
     // Get order history details
     const history = await Order.find({ deliveryBoyId: req.user._id })
-      .populate('shopId', 'shopName')
-      .populate('userId', 'name')
+      .populate('shopId', 'shopName address')
+      .populate('userId', 'name phone')
       .sort({ updatedAt: -1 });
 
     const formattedHistory = history.map(item => ({
       _id: item._id,
       shop: item.shopId?.shopName || 'Shop',
+      shopAddress: item.shopId?.address || '',
+      deliveryAddress: item.deliveryAddress || '',
       customer: item.userId?.name || 'Customer',
+      phone: item.userId?.phone || '+91 99999 99999',
+      distance: '2.5 km',
       date: item.updatedAt,
       earning: 40,
       status: item.status,
