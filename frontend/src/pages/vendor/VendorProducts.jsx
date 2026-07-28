@@ -372,11 +372,22 @@ const VendorProducts = () => {
               : `${products.length} product${products.length === 1 ? '' : 's'} in your catalogue`}
           </p>
           <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-            <ScanLine size={12} />
-            Scan barcode to auto-fill name, image &amp; details — only set price &amp; stock
+            <Camera size={12} />
+            Mobile/laptop camera se barcode scan karein — name, image auto-fill; sirf price &amp; stock set karein
           </p>
         </div>
-        <div className="flex gap-2 self-start">
+        <div className="flex flex-wrap gap-2 self-start">
+          <button
+            onClick={() => {
+              handleOpenModal();
+              // Open camera after add-product modal mounts
+              setTimeout(() => setIsCameraModalOpen(true), 150);
+            }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm shadow-sm transition-colors"
+          >
+            <Camera size={17} />
+            Scan Barcode
+          </button>
           <button
             onClick={() => setIsBulkModalOpen(true)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium text-sm shadow-sm transition-colors"
@@ -462,11 +473,14 @@ const VendorProducts = () => {
                       </p>
                       {!searchTerm && (
                         <button
-                          onClick={() => handleOpenModal()}
+                          onClick={() => {
+                            handleOpenModal();
+                            setTimeout(() => setIsCameraModalOpen(true), 150);
+                          }}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
                         >
-                          <Barcode size={16} />
-                          Scan / Add by barcode
+                          <Camera size={16} />
+                          Camera se barcode scan karein
                         </button>
                       )}
                     </div>
@@ -480,7 +494,7 @@ const VendorProducts = () => {
                         <div className="w-10 h-10 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden flex items-center justify-center">
                           {product.imagePath ? (
                             <img
-                              src={product.imagePath}
+                              src={`/api/products/${product._id}/image`}
                               alt={product.name}
                               className="w-full h-full object-cover"
                             />
@@ -580,8 +594,16 @@ const VendorProducts = () => {
                     <span className="text-sm font-bold">Barcode auto-fill</span>
                   </div>
                   <p className="text-[11px] text-blue-600/80">
-                    USB scanner se scan karo (auto Enter) ya code type karke Lookup dabao.
+                    Mobile / laptop camera se barcode scan karein, ya code type / USB scanner use karein.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsCameraModalOpen(true)}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <Camera size={18} />
+                    Camera se barcode scan karein
+                  </button>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Barcode
@@ -593,7 +615,7 @@ const VendorProducts = () => {
                         type="text"
                         inputMode="numeric"
                         autoComplete="off"
-                        placeholder="Scan or type barcode..."
+                        placeholder="Ya barcode type / USB scan..."
                         value={editingProduct.barcode || ''}
                         onChange={(e) =>
                           setEditingProduct({
@@ -610,7 +632,7 @@ const VendorProducts = () => {
                       type="button"
                       disabled={lookingUp}
                       onClick={() => handleBarcodeLookup()}
-                      className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold flex items-center gap-1.5 shrink-0"
+                      className="px-4 py-2.5 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 disabled:opacity-60 text-blue-700 text-sm font-semibold flex items-center gap-1.5 shrink-0"
                     >
                       {lookingUp ? (
                         <Loader2 size={16} className="animate-spin" />
@@ -618,14 +640,6 @@ const VendorProducts = () => {
                         <Sparkles size={16} />
                       )}
                       {lookingUp ? '...' : 'Lookup'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsCameraModalOpen(true)}
-                      className="px-3 py-2.5 rounded-lg border border-blue-200 bg-white hover:bg-blue-50 text-blue-600 text-sm font-semibold flex items-center gap-1.5 shrink-0"
-                    >
-                      <ScanLine size={16} />
-                      <span className="hidden sm:inline">Scan Barcode</span>
                     </button>
                   </div>
                   {lookupMsg && (
@@ -661,7 +675,7 @@ const VendorProducts = () => {
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className="w-16 h-16 rounded-lg overflow-hidden bg-white border border-gray-200 shrink-0">
                     <img
-                      src={editingProduct.imagePath}
+                      src={`/api/products/${editingProduct._id}/image`}
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -924,7 +938,9 @@ const VendorProducts = () => {
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}
         onScan={(code) => {
-          setEditingProduct({ ...editingProduct, barcode: code });
+          setEditingProduct((prev) =>
+            prev ? { ...prev, barcode: code, autoFilled: false } : prev
+          );
           handleBarcodeLookup(code);
         }}
       />

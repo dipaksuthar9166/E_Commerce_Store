@@ -388,29 +388,18 @@ exports.addVendorProduct = async (req, res) => {
       }
     }
 
-    // Handle manual image upload
-    let finalImage = (providedImage && String(providedImage).trim()) || '';
+    // Handle image upload to MongoDB
+    const images_data = [];
+    const files = req.files || (req.file ? [req.file] : []);
     
-    if (req.file) {
-      const uploadedUrl = await uploadBufferToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
-      if (uploadedUrl) {
-        finalImage = uploadedUrl;
-      }
+    if (files.length > 0) {
+      files.forEach(file => {
+        images_data.push({ data: file.buffer, contentType: file.mimetype });
+      });
     }
 
-    // Prefer barcode/catalog image; only call AI if no image provided
-    if (!finalImage && !skipAiImage) {
-      try {
-        const prompt = generateProductPrompt(name, colors ? colors[0] : '', resolvedCategory?.name);
-        finalImage = await generateAndStoreImage(prompt);
-      } catch (imgErr) {
-        console.warn('AI image skipped:', imgErr.message);
-        finalImage = 'https://via.placeholder.com/512.png?text=No+Image';
-      }
-    }
-    if (!finalImage) {
-      finalImage = 'https://via.placeholder.com/512.png?text=No+Image';
-    }
+    // NOTE: AI image generation and placeholder logic has been removed as per the request
+    // to store images directly in MongoDB. If no image is uploaded, the images array will be empty.
 
     const product = await Product.create({
       shopId: shop._id,
@@ -423,7 +412,7 @@ exports.addVendorProduct = async (req, res) => {
       barcode: barcodeValue || '',
       categoryId: resolvedCategory?._id,
       category: resolvedCategory?.name || categoryName || '',
-      imagePath: finalImage,
+      images: images_data,
     });
 
     const populatedProduct = await Product.findById(product._id).populate('categoryId', 'name');
@@ -468,14 +457,20 @@ exports.updateProduct = async (req, res) => {
     product.description = description ?? product.description;
     product.barcode = barcode ?? product.barcode;
     product.categoryId = categoryId || undefined;
-    product.imagePath = imagePath ?? product.imagePath;
-
-    if (req.file) {
-      const uploadedUrl = await uploadBufferToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
-      if (uploadedUrl) {
-        product.imagePath = uploadedUrl;
-      }
+    // Handle image updates in MongoDB
+    const files = req.files || (req.file ? [req.file] : []);
+    
+    // If new files are uploaded, replace the old images.
+    if (files.length > 0) {
+      product.images = []; // Clear old images
+      files.forEach(file => {
+        product.images.push({ data: file.buffer, contentType: file.mimetype });
+      });
+    } else if (req.body.images === '[]' || req.body.imagePath === null) {
+      // Allow frontend to clear images by sending an empty array string or null imagePath
+      product.images = [];
     }
+    // If no new files, the existing product.images array remains unchanged.
 
     if (sizes !== undefined) {
       product.sizes = Array.isArray(sizes) ? sizes : String(sizes).split(',').map(s => s.trim());
@@ -885,21 +880,14 @@ exports.bulkUploadProducts = async (req, res) => {
         }
 
         // Handle Image
-        let imageUrl = 'https://via.placeholder.com/512.png?text=No+Image';
+        const images_data = [];
         if (imageFilename) {
           // Find matching uploaded image file
           const matchedImage = imageFiles.find(file => file.originalname === imageFilename);
           if (matchedImage) {
-            const uploadedUrl = await uploadBufferToS3(matchedImage.buffer, matchedImage.originalname, matchedImage.mimetype);
-            if (uploadedUrl) {
-              imageUrl = uploadedUrl;
-            }
-          } else {
-             // Try to see if it's already a URL
-             if(imageFilename.startsWith('http')){
-                 imageUrl = imageFilename;
-             }
+            images_data.push({ data: matchedImage.buffer, contentType: matchedImage.mimetype });
           }
+          // Note: Logic for handling pre-existing http URLs is removed as we now store binary data.
         }
 
         // Create Product
@@ -912,7 +900,7 @@ exports.bulkUploadProducts = async (req, res) => {
           description: String(description),
           categoryId: resolvedCategory._id,
           category: resolvedCategory.name,
-          imagePath: imageUrl,
+          images: images_data,
         });
 
         createdProducts.push(product);

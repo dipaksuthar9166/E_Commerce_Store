@@ -13,6 +13,7 @@ import PromoBannerSlider from '../components/PromoBannerSlider';
 import ProductCard from '../components/ProductCard';
 import usePublicCategories from '../hooks/usePublicCategories';
 import api from '../api/axios';
+import { getProductImage } from '../utils/productImage';
 
 const TRUST = [
   { icon: Truck, title: 'Fast delivery', desc: 'Same-day in your area' },
@@ -137,18 +138,11 @@ const Home = () => {
               >
                 <div className="aspect-square rounded-lg bg-slate-50 flex items-center justify-center p-2 mb-2 overflow-hidden">
                   <img
-                    src={
-                      product.imagePath ||
-                      'https://images.unsplash.com/photo-1560393464-5c69a73c5770?auto=format&fit=crop&q=80&w=400'
-                    }
+                    src={getProductImage(product)}
                     alt={product.name}
                     className="w-full h-full object-contain"
                     loading="lazy"
                     decoding="async"
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        'https://images.unsplash.com/photo-1560393464-5c69a73c5770?auto=format&fit=crop&q=80&w=400';
-                    }}
                   />
                 </div>
                 <p className="text-xs font-semibold text-slate-800 line-clamp-1">{product.name}</p>

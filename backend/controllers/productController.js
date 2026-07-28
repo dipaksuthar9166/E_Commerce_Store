@@ -123,3 +123,41 @@ exports.getRelatedProducts = asyncHandler(async (req, res) => {
 
   res.status(200).json(related);
 });
+
+/**
+ * @desc    Get the primary image for a single product
+ * @route   GET /api/products/:id/image
+ * @access  Public
+ */
+exports.getProductImage = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id).select('images');
+
+  if (!product || !product.images || product.images.length === 0) {
+    // Return a 404 or a placeholder image
+    return res.status(404).send('Not found');
+  }
+
+  // Serve the first image
+  const image = product.images[0];
+  res.set('Content-Type', image.contentType);
+  res.send(image.data);
+});
+
+/**
+ * @desc    Get a specific image for a single product by index
+ * @route   GET /api/products/:id/images/:index
+ * @access  Public
+ */
+exports.getProductImageByIndex = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id).select('images');
+  const index = parseInt(req.params.index, 10);
+
+  if (!product || !product.images || product.images.length === 0 || isNaN(index) || index < 0 || index >= product.images.length) {
+    return res.status(404).send('Image not found');
+  }
+
+  const image = product.images[index];
+  res.set('Content-Type', image.contentType);
+  res.send(image.data);
+});
+

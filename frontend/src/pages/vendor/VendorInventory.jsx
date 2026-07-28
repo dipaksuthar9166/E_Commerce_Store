@@ -90,7 +90,7 @@ const VendorInventory = () => {
         description: product.description || '',
         barcode: product.barcode || '',
         categoryId: product.categoryId?._id || product.categoryId || undefined,
-        imagePath: product.imagePath || '',
+        // imagePath is no longer needed in the payload as images are handled via file uploads
       };
       const { data: updated } = await api.put(`/vendor/products/${product._id}`, payload);
       setProducts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
@@ -219,7 +219,7 @@ const VendorInventory = () => {
                         <div className="flex items-center gap-3 min-w-[180px]">
                           <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center shrink-0">
                             {product.imagePath ? (
-                              <img src={product.imagePath} alt="" className="w-full h-full object-cover" />
+                              <img src={`/api/products/${product._id}/image`} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <Package size={16} className="text-gray-300" />
                             )}

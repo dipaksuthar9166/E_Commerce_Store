@@ -25,11 +25,9 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  imagePath: {
-    type: String, // Kept for backwards compatibility (primary image)
-  },
   images: [{
-    type: String // Additional gallery images
+    data: Buffer,
+    contentType: String
   }],
   category: {
     type: String,

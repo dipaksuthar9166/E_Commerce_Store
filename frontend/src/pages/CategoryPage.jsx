@@ -29,7 +29,7 @@ const ProductCard = ({ product, onAdd }) => {
         {/* Image / Gradient Placeholder */}
         <div className="aspect-[4/3] relative overflow-hidden">
           {product.imagePath ? (
-            <img src={product.imagePath} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img src={`/api/products/${product._id}/image`} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
               <span className="text-white/30 text-7xl font-black">{product.name.charAt(0)}</span>

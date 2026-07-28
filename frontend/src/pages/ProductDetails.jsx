@@ -5,6 +5,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/axios';
 import ProductCard from '../components/ProductCard';
+import { getProductImage, getProductImageByIndex } from '../utils/productImage';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -97,7 +98,7 @@ const ProductDetails = () => {
         name: product.name,
         price: product.price,
         discount_percent: product.discount_percent || 0,
-        image_path: product.images?.[0] || product.imagePath,
+        image_path: getProductImage(product),
         images: product.images || [],
         shopId: product.shopId?._id || product.shopId || null,
         shopName: product.shopId?.shopName || product.shopName || '',
@@ -209,9 +210,8 @@ const ProductDetails = () => {
               <Heart className={`w-5 h-5 transition-colors duration-300 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
             </button>
             <img 
-              src={imageErrors[activeImage] ? 'https://via.placeholder.com/600?text=Image+Not+Found' : product.images[activeImage]} 
+              src={getProductImageByIndex(product, activeImage)} 
               alt={product.name} 
-              onError={() => handleImageError(activeImage)}
               className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110 relative z-10 drop-shadow-xl"
             />
           </div>
@@ -224,8 +224,7 @@ const ProductDetails = () => {
                 className={`w-16 h-16 rounded-xl overflow-hidden transition-all duration-300 border-2 p-1 ${activeImage === idx ? 'border-blue-600 dark:border-blue-500 scale-110 shadow-lg shadow-blue-500/20' : 'border-transparent bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'} flex-shrink-0`}
               >
                 <img 
-                  src={imageErrors[idx] ? 'https://via.placeholder.com/150?text=...' : img} 
-                  onError={() => handleImageError(idx)}
+                  src={getProductImageByIndex(product, idx)} 
                   alt="" 
                   className="w-full h-full object-cover rounded-lg" 
                 />

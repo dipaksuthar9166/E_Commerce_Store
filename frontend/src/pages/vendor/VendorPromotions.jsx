@@ -200,7 +200,7 @@ const VendorPromotions = () => {
                     </div>
                     
                     <div className="w-12 h-12 rounded-lg bg-gray-50 overflow-hidden shrink-0 p-1 border border-gray-100">
-                      <img src={product.imagePath || 'https://via.placeholder.com/100'} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                      <img src={`/api/products/${product._id}/image`} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
                     </div>
                     
                     <div className="flex-1 min-w-0">
