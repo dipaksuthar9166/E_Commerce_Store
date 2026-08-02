@@ -8,6 +8,8 @@ import {
   Loader2,
   RefreshCw,
   CheckCircle2,
+  Trash2,
+  X,
 } from 'lucide-react';
 import api from '../../api/axios';
 import { getProductImage, productHasImage } from '../../utils/productImage';
@@ -25,7 +27,12 @@ const VendorInventory = () => {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); // all | low | out
   const [drafts, setDrafts] = useState({});
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ text: '', type: 'info' });
+
+  // Selection state
+  const [selected, setSelected] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false); // show confirm dialog
 
   const fetchProducts = async () => {
     try {
@@ -38,6 +45,7 @@ const VendorInventory = () => {
         next[p._id] = String(p.stock ?? 0);
       });
       setDrafts(next);
+      setSelected(new Set());
     } catch (err) {
       console.error('Failed to load inventory', err);
     } finally {
@@ -73,16 +81,47 @@ const VendorInventory = () => {
     });
   }, [products, search, filter]);
 
+  // ── Selection helpers ────────────────────────────────────────────────────────
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((p) => selected.has(p._id));
+  const someSelected = selected.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      // deselect all currently filtered
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filtered.forEach((p) => next.delete(p._id));
+        return next;
+      });
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        filtered.forEach((p) => next.add(p._id));
+        return next;
+      });
+    }
+  };
+
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // ── Save stock ───────────────────────────────────────────────────────────────
   const handleSaveStock = async (product) => {
     const raw = drafts[product._id];
     const stock = Math.max(0, parseInt(raw, 10));
     if (Number.isNaN(stock)) {
-      setMessage('Enter a valid stock number.');
+      setMessage({ text: 'Enter a valid stock number.', type: 'error' });
       return;
     }
 
     setSavingId(product._id);
-    setMessage('');
+    setMessage({ text: '', type: 'info' });
     try {
       const payload = {
         name: product.name,
@@ -91,26 +130,70 @@ const VendorInventory = () => {
         description: product.description || '',
         barcode: product.barcode || '',
         categoryId: product.categoryId?._id || product.categoryId || undefined,
-        // imagePath is no longer needed in the payload as images are handled via file uploads
       };
       const { data: updated } = await api.put(`/vendor/products/${product._id}`, payload);
       setProducts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
       setDrafts((d) => ({ ...d, [product._id]: String(updated.stock ?? stock) }));
-      setMessage(`Updated stock for “${product.name}”.`);
+      setMessage({ text: `Stock updated for "${product.name}".`, type: 'success' });
     } catch (err) {
-      setMessage(err.response?.data?.message || 'Failed to update stock.');
+      setMessage({ text: err.response?.data?.message || 'Failed to update stock.', type: 'error' });
     } finally {
       setSavingId(null);
     }
   };
 
+  // ── Delete selected ──────────────────────────────────────────────────────────
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    setDeleting(true);
+    setConfirmDelete(false);
+    try {
+      const ids = [...selected];
+      await api.delete('/vendor/products/bulk', { data: { ids } });
+      setProducts((prev) => prev.filter((p) => !selected.has(p._id)));
+      setDrafts((d) => {
+        const next = { ...d };
+        ids.forEach((id) => delete next[id]);
+        return next;
+      });
+      setSelected(new Set());
+      setMessage({ text: `${ids.length} product(s) deleted successfully.`, type: 'success' });
+    } catch (err) {
+      setMessage({ text: err.response?.data?.message || 'Failed to delete products.', type: 'error' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ── Delete single ────────────────────────────────────────────────────────────
+  const handleDeleteOne = async (product) => {
+    if (!window.confirm(`Delete "${product.name}"? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/vendor/products/${product._id}`);
+      setProducts((prev) => prev.filter((p) => p._id !== product._id));
+      setDrafts((d) => { const next = { ...d }; delete next[product._id]; return next; });
+      setSelected((prev) => { const next = new Set(prev); next.delete(product._id); return next; });
+      setMessage({ text: `"${product.name}" deleted.`, type: 'success' });
+    } catch (err) {
+      setMessage({ text: err.response?.data?.message || 'Failed to delete product.', type: 'error' });
+    }
+  };
+
+  const msgCls =
+    message.type === 'success'
+      ? 'bg-green-50 border-green-100 text-green-800'
+      : message.type === 'error'
+      ? 'bg-red-50 border-red-100 text-red-700'
+      : 'bg-blue-50 border-blue-100 text-blue-800';
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto animate-in fade-in duration-500">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Track and update stock levels for every product in your catalogue.
+            Track and update stock levels. Select products to delete in bulk.
           </p>
         </div>
         <button
@@ -122,6 +205,7 @@ const VendorInventory = () => {
         </button>
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Total SKUs', value: stats.total, icon: Package, tone: 'bg-blue-50 text-blue-600' },
@@ -139,43 +223,102 @@ const VendorInventory = () => {
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, category, barcode..."
-            className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+      {/* Search + Filters + Bulk Delete Bar */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, category, barcode..."
+              className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'low', label: 'Low' },
+              { key: 'out', label: 'Out' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilter(key)}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
+                  filter === key
+                    ? 'bg-blue-50 border-blue-200 text-blue-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { key: 'all', label: 'All' },
-            { key: 'low', label: 'Low' },
-            { key: 'out', label: 'Out' },
-          ].map(({ key, label }) => (
+
+        {/* Bulk Action Bar — shown when items are selected */}
+        {someSelected && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
+            <div className="flex-1 text-sm font-semibold text-red-700">
+              {selected.size} item{selected.size > 1 ? 's' : ''} selected
+            </div>
             <button
-              key={key}
               type="button"
-              onClick={() => setFilter(key)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold border transition ${
-                filter === key
-                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+              onClick={() => setSelected(new Set())}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 border border-gray-200 bg-white hover:bg-gray-50 transition"
             >
-              {label}
+              <X size={13} /> Clear
             </button>
-          ))}
-        </div>
+            {confirmDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-red-700">Are you sure?</span>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={handleDeleteSelected}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50"
+                >
+                  {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  Yes, Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition"
+              >
+                <Trash2 size={13} /> Delete Selected
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {message && (
-        <p className="text-sm text-blue-800 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5">{message}</p>
+      {/* Message banner */}
+      {message.text && (
+        <div className={`flex items-center justify-between text-sm border rounded-lg px-4 py-2.5 ${msgCls}`}>
+          <span>{message.text}</span>
+          <button
+            type="button"
+            onClick={() => setMessage({ text: '', type: 'info' })}
+            className="ml-3 text-current opacity-60 hover:opacity-100"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
 
+      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
@@ -202,11 +345,21 @@ const VendorInventory = () => {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
+                  {/* Select All checkbox */}
+                  <th className="px-4 py-3 text-left w-10">
+                    <input
+                      id="select-all-inventory"
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Product</th>
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Category</th>
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Stock</th>
-                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Action</th>
+                  <th className="px-5 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -214,8 +367,21 @@ const VendorInventory = () => {
                   const stock = product.stock ?? 0;
                   const tone = stockTone(stock);
                   const dirty = String(stock) !== String(drafts[product._id] ?? '');
+                  const isChecked = selected.has(product._id);
                   return (
-                    <tr key={product._id} className="hover:bg-gray-50/60">
+                    <tr
+                      key={product._id}
+                      className={`hover:bg-gray-50/60 transition-colors ${isChecked ? 'bg-red-50/40' : ''}`}
+                    >
+                      {/* Row checkbox */}
+                      <td className="px-4 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(product._id)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3 min-w-[180px]">
                           <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center shrink-0">
@@ -253,17 +419,27 @@ const VendorInventory = () => {
                         />
                       </td>
                       <td className="px-5 py-3.5 text-right">
-                        <button
-                          type="button"
-                          disabled={!dirty || savingId === product._id}
-                          onClick={() => handleSaveStock(product)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-semibold transition"
-                        >
-                          {savingId === product._id ? (
-                            <Loader2 size={13} className="animate-spin" />
-                          ) : null}
-                          Save
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            disabled={!dirty || savingId === product._id}
+                            onClick={() => handleSaveStock(product)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-semibold transition"
+                          >
+                            {savingId === product._id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : null}
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOne(product)}
+                            title="Delete product"
+                            className="inline-flex items-center p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

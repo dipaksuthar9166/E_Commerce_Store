@@ -11,6 +11,8 @@ const {
   lookupProductByBarcode,
   addVendorProduct,
   updateProduct,
+  deleteVendorProduct,
+  bulkDeleteVendorProducts,
   updateProductPromotion,
   getVendorOrders,
   updateOrderStatus,
@@ -39,6 +41,8 @@ router.post('/products/bulk-discount', protect, authorize('vendor'), applyBulkDi
 router.post('/products', protect, authorize('vendor'), upload.single('image'), addVendorProduct);
 router.put('/products/:id', protect, authorize('vendor'), upload.single('image'), updateProduct);
 router.put('/products/:id/promo', protect, authorize('vendor'), updateProductPromotion);
+router.delete('/products/bulk', protect, authorize('vendor'), bulkDeleteVendorProducts);
+router.delete('/products/:id', protect, authorize('vendor'), deleteVendorProduct);
 router.get('/orders', protect, authorize('vendor'), getVendorOrders);
 router.put('/orders/:id/status', protect, authorize('vendor'), updateOrderStatus);
 router.put('/orders/:id/return', protect, authorize('vendor'), updateReturnStatus);

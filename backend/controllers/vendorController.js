@@ -508,6 +508,55 @@ exports.updateProduct = async (req, res) => {
     res.status(500).json({ message: 'Server error while updating product' });
   }
 };
+/**
+ * @desc    Delete a single product
+ * @route   DELETE /api/vendor/products/:id
+ * @access  Private/Vendor
+ */
+exports.deleteVendorProduct = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: 'Product not found' });
+
+    if (product.shopId.toString() !== shop._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this product' });
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Product deleted successfully', _id: req.params.id });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/**
+ * @desc    Bulk delete products by IDs
+ * @route   DELETE /api/vendor/products/bulk
+ * @access  Private/Vendor
+ */
+exports.bulkDeleteVendorProducts = async (req, res) => {
+  try {
+    const shop = await Shop.findOne({ userId: req.user._id });
+    if (!shop) return res.status(404).json({ message: 'Shop not found' });
+
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'Provide an array of product IDs to delete.' });
+    }
+
+    // Only delete products belonging to this vendor's shop
+    const result = await Product.deleteMany({ _id: { $in: ids }, shopId: shop._id });
+    res.status(200).json({ message: `${result.deletedCount} product(s) deleted.`, deletedCount: result.deletedCount });
+  } catch (error) {
+    console.error('Bulk delete error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // @desc    Get all orders for vendor's shop
 // @route   GET /api/vendor/orders
 // @access  Private (vendor)
