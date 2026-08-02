@@ -49,21 +49,43 @@ function estimateDeliveryAt(method, deliverySlot) {
   return new Date(now.getTime() + 2 * 60 * 60 * 1000);
 }
 
+const { formatProductForClient } = require('../utils/productImageHelper');
+
 function populateOrderQuery(q) {
   return q
     .populate('shopId', 'shopName address phone')
+    // Include images so formatProductForClient can set hasImage, then strip binary
     .populate('items.productId', 'name imagePath images price discount_percent sizes colors')
     .populate('deliveryBoyId', 'name phone lastLocation')
     .populate('userId', 'name email phone');
 }
 
+/** Strip binary image buffers from populated order items before JSON response */
+function formatOrderForClient(order) {
+  if (!order) return order;
+  const obj = typeof order.toObject === 'function' ? order.toObject() : { ...order };
+  if (Array.isArray(obj.items)) {
+    obj.items = obj.items.map((item) => {
+      if (item?.productId && typeof item.productId === 'object' && item.productId._id) {
+        return { ...item, productId: formatProductForClient(item.productId) };
+      }
+      return item;
+    });
+  }
+  return obj;
+}
+
 async function loadFullOrder(orderId) {
-  return populateOrderQuery(Order.findById(orderId));
+  const order = await populateOrderQuery(Order.findById(orderId));
+  return formatOrderForClient(order);
 }
 
 function assertOwner(order, user) {
-  return order.userId?.toString() === user._id.toString()
-    || order.userId?._id?.toString() === user._id.toString();
+  const ownerId =
+    order.userId?._id?.toString?.() ||
+    order.userId?.toString?.() ||
+    String(order.userId || '');
+  return ownerId === user._id.toString();
 }
 
 // @desc    Customer places a new order
@@ -300,7 +322,7 @@ exports.placeOrder = async (req, res) => {
 
     res.status(201).json({
       message: `${createdOrders.length} order(s) created successfully.`,
-      orders: fullOrders,
+      orders: fullOrders, // already formatted (no binary images)
       // Back-compat for older clients
       _id: fullOrders[0]?._id,
       order: fullOrders[0],
@@ -319,7 +341,7 @@ exports.getMyOrders = async (req, res) => {
     const orders = await populateOrderQuery(
       Order.find({ userId: req.user._id }).sort({ createdAt: -1 })
     );
-    res.status(200).json(orders);
+    res.status(200).json((orders || []).map((o) => formatOrderForClient(o)));
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -723,6 +745,7 @@ exports.reorder = async (req, res) => {
         ? Math.round(full.price * (1 - full.discount_percent / 100))
         : full.price;
 
+      const formatted = formatProductForClient(full);
       cartItems.push({
         product: {
           id: full._id,
@@ -730,8 +753,9 @@ exports.reorder = async (req, res) => {
           name: full.name,
           price: full.price,
           discount_percent: full.discount_percent || 0,
-          image_path: full.imagePath || full.images?.[0],
-          images: full.images || [],
+          imagePath: formatted.imagePath,
+          hasImage: formatted.hasImage,
+          imageCount: formatted.imageCount,
           shopId: full.shopId,
           sizes: full.sizes || [],
           colors: full.colors || [],

@@ -50,11 +50,8 @@ const BulkUploadModal = ({ isOpen, onClose, onUploadSuccess }) => {
     });
 
     try {
-      const response = await api.post('/vendor/products/bulk', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      // Let axios set multipart boundary automatically (manual Content-Type breaks multer)
+      await api.post('/vendor/products/bulk', formData);
       setLoading(false);
       onUploadSuccess();
       onClose();

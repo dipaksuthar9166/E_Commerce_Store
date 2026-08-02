@@ -5,6 +5,7 @@ import api from '../api/axios';
 import { useCart } from '../contexts/CartContext';
 import { resolveCategoryFromKey } from '../data/customerCategories';
 import usePublicCategories from '../hooks/usePublicCategories';
+import { getProductImage, productHasImage } from '../utils/productImage';
 
 /* Neutral placeholders only */
 const GRADIENTS = [
@@ -28,8 +29,8 @@ const ProductCard = ({ product, onAdd }) => {
       <Link to={`/product/${product._id}`} className="contents">
         {/* Image / Gradient Placeholder */}
         <div className="aspect-[4/3] relative overflow-hidden">
-          {product.imagePath ? (
-            <img src={`/api/products/${product._id}/image`} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          {productHasImage(product) ? (
+            <img src={getProductImage(product)} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
               <span className="text-white/30 text-7xl font-black">{product.name.charAt(0)}</span>

@@ -47,6 +47,18 @@ api.interceptors.request.use(
         // ignore corrupt localStorage
       }
     }
+    // FormData must keep browser-generated multipart boundary.
+    // If Content-Type is forced to "multipart/form-data" without boundary, multer gets no file.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers) {
+        if (typeof config.headers.delete === 'function') {
+          config.headers.delete('Content-Type');
+        } else {
+          delete config.headers['Content-Type'];
+          delete config.headers['content-type'];
+        }
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error)

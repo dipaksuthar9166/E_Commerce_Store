@@ -25,6 +25,12 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  // Public URL when hosted on Cloudinary/S3/external (barcode). Optional.
+  imagePath: {
+    type: String,
+    default: '',
+  },
+  // Binary images stored in MongoDB (served via GET /api/products/:id/image)
   images: [{
     data: Buffer,
     contentType: String

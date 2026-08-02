@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import api from '../../api/axios';
+import { getProductImage, productHasImage } from '../../utils/productImage';
 
 const stockTone = (stock) => {
   if (stock <= 0) return { label: 'Out of stock', cls: 'bg-red-50 text-red-700 border-red-100' };
@@ -218,8 +219,8 @@ const VendorInventory = () => {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3 min-w-[180px]">
                           <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center shrink-0">
-                            {product.imagePath ? (
-                              <img src={`/api/products/${product._id}/image`} alt="" className="w-full h-full object-cover" />
+                            {productHasImage(product) ? (
+                              <img src={getProductImage(product)} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <Package size={16} className="text-gray-300" />
                             )}

@@ -52,6 +52,14 @@ const Cart = () => {
     navigate('/checkout', { state: { checkoutItems: selectedItems } });
   };
 
+  const fallbackPlaceholderImage = `https://via.placeholder.com/128/f0f0f0/999999?text=N/A`;
+  const handleImageError = (e) => {
+    // Prevent infinite loop if the fallback image itself fails to load
+    if (!e.target.src.startsWith('https://via.placeholder.com')) {
+      e.target.src = fallbackPlaceholderImage;
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto animate-in fade-in duration-500">
       <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1 tracking-tight">
@@ -95,6 +103,7 @@ const Cart = () => {
                     src={img}
                     alt={item.product.name}
                     className="w-full h-full object-contain p-1"
+                    onError={handleImageError}
                   />
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">

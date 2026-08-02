@@ -1,5 +1,11 @@
 const asyncHandler = require('express-async-handler');
 const Product = require('../models/Product');
+const {
+  formatProductForClient,
+  hasBinaryImages,
+  isHttpUrl,
+  toImageBuffer,
+} = require('../utils/productImageHelper');
 
 /**
  * @desc    Fetch all products (Flipkart-style catalogue) with optional search / filters
@@ -61,7 +67,7 @@ exports.getProducts = asyncHandler(async (req, res) => {
 
   const limit = Math.min(Number(req.query.limit) || 48, 100);
 
-  // List views don't need full review arrays — keeps payload small & fast
+  // List views: never send binary image buffers (breaks production payloads)
   const products = await Product.find(filter)
     .select(
       'name price imagePath images shopId category categoryId stock promo_tag discount_percent averageRating numReviews createdAt'
@@ -72,7 +78,7 @@ exports.getProducts = asyncHandler(async (req, res) => {
     .lean();
 
   res.set('Cache-Control', 'public, max-age=20');
-  res.status(200).json(products);
+  res.status(200).json(products.map((p) => formatProductForClient(p)));
 });
 
 /**
@@ -90,7 +96,9 @@ exports.getProductById = asyncHandler(async (req, res) => {
     throw new Error('Product not found');
   }
 
-  res.status(200).json(product);
+  const formatted = formatProductForClient(product);
+  // Client builds gallery URLs from imageCount + /images/:index
+  res.status(200).json(formatted);
 });
 
 // Backwards-compatible alias
@@ -119,9 +127,10 @@ exports.getRelatedProducts = asyncHandler(async (req, res) => {
   })
     .populate('shopId', 'shopName isOnline isActive')
     .limit(8)
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
-  res.status(200).json(related);
+  res.status(200).json(related.map((p) => formatProductForClient(p)));
 });
 
 /**
@@ -130,17 +139,26 @@ exports.getRelatedProducts = asyncHandler(async (req, res) => {
  * @access  Public
  */
 exports.getProductImage = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).select('images');
+  const product = await Product.findById(req.params.id).select('images imagePath');
 
-  if (!product || !product.images || product.images.length === 0) {
-    // Return a 404 or a placeholder image
-    return res.status(404).send('Not found');
+  if (product && hasBinaryImages(product)) {
+    const image = product.images[0];
+    const buffer = toImageBuffer(image.data);
+    if (buffer) {
+      res.set({
+        'Content-Type': image.contentType || 'image/jpeg',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      return res.send(buffer);
+    }
   }
 
-  // Serve the first image
-  const image = product.images[0];
-  res.set('Content-Type', image.contentType);
-  res.send(image.data);
+  // Redirect to external / cloud URL when no binary is stored
+  if (product && isHttpUrl(product.imagePath)) {
+    return res.redirect(302, product.imagePath);
+  }
+
+  return res.status(404).send('Not found');
 });
 
 /**
@@ -149,15 +167,31 @@ exports.getProductImage = asyncHandler(async (req, res) => {
  * @access  Public
  */
 exports.getProductImageByIndex = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).select('images');
+  const product = await Product.findById(req.params.id).select('images imagePath');
   const index = parseInt(req.params.index, 10);
 
-  if (!product || !product.images || product.images.length === 0 || isNaN(index) || index < 0 || index >= product.images.length) {
-    return res.status(404).send('Image not found');
+  if (
+    product &&
+    hasBinaryImages(product) &&
+    !Number.isNaN(index) &&
+    index >= 0 &&
+    index < product.images.length
+  ) {
+    const image = product.images[index];
+    const buffer = toImageBuffer(image.data);
+    if (buffer) {
+      res.set({
+        'Content-Type': image.contentType || 'image/jpeg',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      return res.send(buffer);
+    }
   }
 
-  const image = product.images[index];
-  res.set('Content-Type', image.contentType);
-  res.send(image.data);
+  if (index === 0 && product && isHttpUrl(product.imagePath)) {
+    return res.redirect(302, product.imagePath);
+  }
+
+  return res.status(404).send('Image not found');
 });
 

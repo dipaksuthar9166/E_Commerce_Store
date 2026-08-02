@@ -8,6 +8,10 @@ const { lookupBarcode, cleanBarcode } = require('../services/barcodeLookupServic
 const xlsx = require('xlsx');
 const { uploadBufferToS3 } = require('../services/uploadService');
 const { emitOrderStatusUpdated } = require('../utils/orderSocket');
+const {
+  formatProductForClient,
+  resolveProductImages,
+} = require('../utils/productImageHelper');
 
 
 const COMMISSION_RATE = 0.1;
@@ -147,11 +151,12 @@ exports.getVendorDashboard = async (req, res) => {
       }))
     );
 
-    // Fetch low stock products (stock < 5)
-    const lowStockProducts = await Product.find({ shopId: shop._id, stock: { $lt: 5 } })
-      .select('name stock imagePath')
+    // Fetch low stock products (stock < 5) — include images for hasImage flag only
+    const lowStockRaw = await Product.find({ shopId: shop._id, stock: { $lt: 5 } })
+      .select('name stock imagePath images')
       .limit(10)
       .lean();
+    const lowStockProducts = lowStockRaw.map((p) => formatProductForClient(p));
 
     res.status(200).json({
       shop,
@@ -272,11 +277,15 @@ exports.getVendorProducts = async (req, res) => {
       return res.status(404).json({ message: 'No shop found for this vendor' });
     }
 
-    const products = await Product.find({ shopId: shop._id }).populate('categoryId', 'name').sort({ createdAt: -1 });
-    const formattedProducts = products.map((product) => ({
-      ...product.toObject(),
-      categoryName: product.categoryId?.name || '',
-    }));
+    const products = await Product.find({ shopId: shop._id })
+      .populate('categoryId', 'name')
+      .sort({ createdAt: -1 });
+    // Never send binary image buffers in list JSON (breaks online / large payloads)
+    const formattedProducts = products.map((product) =>
+      formatProductForClient(product, {
+        categoryName: product.categoryId?.name || '',
+      })
+    );
 
     res.status(200).json(formattedProducts);
   } catch (error) {
@@ -388,18 +397,12 @@ exports.addVendorProduct = async (req, res) => {
       }
     }
 
-    // Handle image upload to MongoDB
-    const images_data = [];
+    // Files from multer + optional remote imagePath (barcode auto-fill)
     const files = req.files || (req.file ? [req.file] : []);
-    
-    if (files.length > 0) {
-      files.forEach(file => {
-        images_data.push({ data: file.buffer, contentType: file.mimetype });
-      });
-    }
-
-    // NOTE: AI image generation and placeholder logic has been removed as per the request
-    // to store images directly in MongoDB. If no image is uploaded, the images array will be empty.
+    const resolvedImages = await resolveProductImages({
+      files,
+      imagePathUrl: providedImage,
+    });
 
     const product = await Product.create({
       shopId: shop._id,
@@ -412,14 +415,16 @@ exports.addVendorProduct = async (req, res) => {
       barcode: barcodeValue || '',
       categoryId: resolvedCategory?._id,
       category: resolvedCategory?.name || categoryName || '',
-      images: images_data,
+      images: resolvedImages.images,
+      imagePath: resolvedImages.imagePath || '',
     });
 
     const populatedProduct = await Product.findById(product._id).populate('categoryId', 'name');
-    res.status(201).json({
-      ...populatedProduct.toObject(),
-      categoryName: populatedProduct.categoryId?.name || '',
-    });
+    res.status(201).json(
+      formatProductForClient(populatedProduct, {
+        categoryName: populatedProduct.categoryId?.name || '',
+      })
+    );
   } catch (error) {
     console.error('Add product error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -457,20 +462,30 @@ exports.updateProduct = async (req, res) => {
     product.description = description ?? product.description;
     product.barcode = barcode ?? product.barcode;
     product.categoryId = categoryId || undefined;
-    // Handle image updates in MongoDB
+
     const files = req.files || (req.file ? [req.file] : []);
-    
-    // If new files are uploaded, replace the old images.
-    if (files.length > 0) {
-      product.images = []; // Clear old images
-      files.forEach(file => {
-        product.images.push({ data: file.buffer, contentType: file.mimetype });
+    const clearImages =
+      req.body.images === '[]' ||
+      req.body.imagePath === 'null' ||
+      req.body.clearImage === 'true';
+
+    if (files.length > 0 || (imagePath && String(imagePath).startsWith('http'))) {
+      const resolvedImages = await resolveProductImages({
+        files,
+        imagePathUrl: imagePath,
       });
-    } else if (req.body.images === '[]' || req.body.imagePath === null) {
-      // Allow frontend to clear images by sending an empty array string or null imagePath
+      if (resolvedImages.images.length > 0 || resolvedImages.imagePath) {
+        if (resolvedImages.images.length > 0) {
+          product.images = resolvedImages.images;
+        }
+        if (resolvedImages.imagePath) {
+          product.imagePath = resolvedImages.imagePath;
+        }
+      }
+    } else if (clearImages) {
       product.images = [];
+      product.imagePath = '';
     }
-    // If no new files, the existing product.images array remains unchanged.
 
     if (sizes !== undefined) {
       product.sizes = Array.isArray(sizes) ? sizes : String(sizes).split(',').map(s => s.trim());
@@ -482,11 +497,12 @@ exports.updateProduct = async (req, res) => {
     const updatedProduct = await product.save();
 
     const populatedProduct = await Product.findById(updatedProduct._id).populate('categoryId', 'name');
-    
-    res.json({
-      ...populatedProduct.toObject(),
-      categoryName: populatedProduct.categoryId ? populatedProduct.categoryId.name : '',
-    });
+
+    res.json(
+      formatProductForClient(populatedProduct, {
+        categoryName: populatedProduct.categoryId ? populatedProduct.categoryId.name : '',
+      })
+    );
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ message: 'Server error while updating product' });
@@ -504,11 +520,24 @@ exports.getVendorOrders = async (req, res) => {
 
     const orders = await Order.find({ shopId: shop._id })
       .populate('userId', 'name email')
-      .populate('items.productId', 'name imagePath price')
+      .populate('items.productId', 'name imagePath images price')
       .sort({ createdAt: -1 });
 
+    const formattedOrders = orders.map((order) => {
+      const obj = order.toObject ? order.toObject() : { ...order };
+      if (Array.isArray(obj.items)) {
+        obj.items = obj.items.map((item) => {
+          if (item?.productId && typeof item.productId === 'object' && item.productId._id) {
+            return { ...item, productId: formatProductForClient(item.productId) };
+          }
+          return item;
+        });
+      }
+      return obj;
+    });
+
     res.status(200).json({
-        orders,
+        orders: formattedOrders,
         blockedCustomerIds: shop.blockedCustomerIds || []
     });
   } catch (error) {
@@ -805,10 +834,11 @@ exports.updateProductPromotion = async (req, res) => {
 
     const populatedProduct = await Product.findById(updatedProduct._id).populate('categoryId', 'name');
 
-    res.status(200).json({
-      ...populatedProduct.toObject(),
-      categoryName: populatedProduct.categoryId ? populatedProduct.categoryId.name : '',
-    });
+    res.status(200).json(
+      formatProductForClient(populatedProduct, {
+        categoryName: populatedProduct.categoryId ? populatedProduct.categoryId.name : '',
+      })
+    );
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -879,15 +909,20 @@ exports.bulkUploadProducts = async (req, res) => {
           categoryCache[normalizedCatName.toLowerCase()] = resolvedCategory;
         }
 
-        // Handle Image
-        const images_data = [];
+        // Handle Image (file match or remote URL in Excel cell)
+        let images_data = [];
+        let imagePath = '';
         if (imageFilename) {
-          // Find matching uploaded image file
-          const matchedImage = imageFiles.find(file => file.originalname === imageFilename);
+          const matchedImage = imageFiles.find((file) => file.originalname === imageFilename);
           if (matchedImage) {
-            images_data.push({ data: matchedImage.buffer, contentType: matchedImage.mimetype });
+            const resolved = await resolveProductImages({ files: [matchedImage] });
+            images_data = resolved.images;
+            imagePath = resolved.imagePath || '';
+          } else if (String(imageFilename).startsWith('http')) {
+            const resolved = await resolveProductImages({ imagePathUrl: String(imageFilename) });
+            images_data = resolved.images;
+            imagePath = resolved.imagePath || '';
           }
-          // Note: Logic for handling pre-existing http URLs is removed as we now store binary data.
         }
 
         // Create Product
@@ -895,15 +930,16 @@ exports.bulkUploadProducts = async (req, res) => {
           shopId: shop._id,
           name: String(name),
           price: Number(price),
-          color: String(color),
+          colors: color ? [String(color)] : [],
           stock: Number(stock),
           description: String(description),
           categoryId: resolvedCategory._id,
           category: resolvedCategory.name,
           images: images_data,
+          imagePath,
         });
 
-        createdProducts.push(product);
+        createdProducts.push(formatProductForClient(product));
       } catch (rowErr) {
         errors.push(`Row ${i + 2}: ${rowErr.message}`);
       }
@@ -931,16 +967,18 @@ exports.getVendorReviews = async (req, res) => {
 
     // Find products for this shop that have at least one review
     const products = await Product.find({ shopId: shop._id, 'reviews.0': { $exists: true } })
-      .select('name imagePath reviews')
+      .select('name imagePath images reviews')
       .sort({ 'reviews.createdAt': -1 });
 
     let allReviews = [];
     products.forEach(product => {
+      const formatted = formatProductForClient(product);
       product.reviews.forEach(review => {
         allReviews.push({
           productId: product._id,
           productName: product.name,
-          productImage: product.imagePath,
+          productImage: formatted.imagePath,
+          hasImage: formatted.hasImage,
           reviewId: review._id,
           userName: review.name,
           rating: review.rating,

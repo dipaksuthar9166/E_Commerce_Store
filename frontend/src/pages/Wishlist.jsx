@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, ShoppingCart, Heart } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
-import { getProductImage } from '../utils/productImage';
 
 import api from '../api/axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -57,6 +56,14 @@ const Wishlist = () => {
     removeFromWishlist(product._id);
   };
 
+  const fallbackPlaceholderImage = `https://via.placeholder.com/256/f0f0f0/999999?text=No+Image`;
+  const handleImageError = (e) => {
+    // Prevent infinite loop if the fallback image itself fails to load
+    if (!e.target.src.startsWith('https://via.placeholder.com')) {
+      e.target.src = fallbackPlaceholderImage;
+    }
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto animate-in fade-in duration-500">
       <h1 className="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2 tracking-tight">
@@ -89,9 +96,10 @@ const Wishlist = () => {
             <div key={item._id} className="card-surface card-hover overflow-hidden flex flex-col">
               <div className="relative aspect-square p-4 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
                 <img
-                  src={getProductImage(item)}
+                  src={item.imagePath || item.image_path || `https://via.placeholder.com/256/f0f0f0/999999?text=No+Image`}
                   alt={item.name}
                   className="max-h-full object-contain"
+                  onError={handleImageError}
                 />
                 <button
                   type="button"

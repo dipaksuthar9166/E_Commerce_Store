@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Star, MessageCircle, Reply, Loader2, CheckCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { Link } from 'react-router-dom';
+import { getProductImage } from '../../utils/productImage';
 
 const VendorReviews = () => {
   const [reviews, setReviews] = useState([]);
@@ -85,7 +86,11 @@ const VendorReviews = () => {
                 <div className="hidden sm:block shrink-0">
                   <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 p-1 flex items-center justify-center overflow-hidden">
                     <img 
-                      src={review.productImage || 'https://via.placeholder.com/100'} 
+                      src={getProductImage({
+                        _id: review.productId,
+                        imagePath: review.productImage,
+                        hasImage: review.hasImage ?? Boolean(review.productImage),
+                      })}
                       alt={review.productName} 
                       className="max-w-full max-h-full object-contain mix-blend-multiply" 
                     />

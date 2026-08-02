@@ -27,6 +27,7 @@ import {
 import api from '../../api/axios';
 import BulkUploadModal from '../../components/vendor/BulkUploadModal';
 import CameraScannerModal from '../../components/vendor/CameraScannerModal';
+import { getProductImage, productHasImage } from '../../utils/productImage';
 
 const StockBadge = ({ stock }) => {
   if (stock === 0) {
@@ -148,10 +149,12 @@ const VendorProducts = () => {
   });
 
   const handleOpenModal = (product = null) => {
+    setImageFile(null);
     setEditingProduct(
       product
         ? {
             ...product,
+            // Keep hasImage / imageCount / imagePath from API so preview works
             colors: Array.isArray(product.colors) ? product.colors.join(', ') : '',
             sizes: Array.isArray(product.sizes) ? product.sizes.join(', ') : '',
             categoryId: product.categoryId?._id || product.categoryId || '',
@@ -312,17 +315,16 @@ const VendorProducts = () => {
     }
 
     try {
+      // Do NOT set Content-Type manually — browser must add multipart boundary
+      // or multer never receives the file and the product saves without an image.
       if (editingProduct._id) {
         const { data: updatedProduct } = await api.put(
           `/vendor/products/${editingProduct._id}`,
-          formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
+          formData
         );
         setProducts(products.map((p) => (p._id === updatedProduct._id ? updatedProduct : p)));
       } else {
-        const { data: newProd } = await api.post('/vendor/products', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        const { data: newProd } = await api.post('/vendor/products', formData);
         setProducts([newProd, ...products]);
         // categories may have been auto-created
         fetchCategories();
@@ -492,11 +494,14 @@ const VendorProducts = () => {
                     <td className="px-6 py-4 font-semibold text-gray-800">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                          {product.imagePath ? (
+                          {productHasImage(product) ? (
                             <img
-                              src={`/api/products/${product._id}/image`}
+                              src={getProductImage(product)}
                               alt={product.name}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           ) : (
                             <Package size={20} className="text-gray-300" />
@@ -670,12 +675,16 @@ const VendorProducts = () => {
                 />
               )}
 
-              {/* Preview when auto-filled */}
-              {editingProduct.imagePath && (
+              {/* Preview: existing product image (binary/cloud) or barcode auto-fill URL */}
+              {(productHasImage(editingProduct) || editingProduct.imagePath) && !imageFile && (
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className="w-16 h-16 rounded-lg overflow-hidden bg-white border border-gray-200 shrink-0">
                     <img
-                      src={`/api/products/${editingProduct._id}/image`}
+                      src={
+                        editingProduct._id
+                          ? getProductImage(editingProduct)
+                          : editingProduct.imagePath
+                      }
                       alt=""
                       className="w-full h-full object-cover"
                     />
@@ -835,10 +844,10 @@ const VendorProducts = () => {
                     </div>
                   )}
                 </div>
-                {!editingProduct.imagePath && !editingProduct._id && !imageFile && (
+                {!productHasImage(editingProduct) && !editingProduct.imagePath && !editingProduct._id && !imageFile && (
                   <p className="text-[10px] text-gray-500 flex items-center gap-1.5 pt-2">
                     <ImageIcon size={12} />
-                    Auto-Search image will be applied on save if left empty.
+                    Upload an image — it will show on product cards, details, cart &amp; checkout.
                   </p>
                 )}
               </div>

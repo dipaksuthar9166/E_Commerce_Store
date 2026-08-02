@@ -9,6 +9,10 @@ import {
   Wallet, Smartphone, Building2, Clock, Tag, ShieldCheck
 } from 'lucide-react';
 import api from '../api/axios';
+import { getProductImage } from '../utils/productImage';
+
+// Fallback image URL
+const fallbackPlaceholderImage = `https://via.placeholder.com/128/f0f0f0/999999?text=N/A`;
 
 const DELIVERY_METHODS = [
   {
@@ -358,7 +362,8 @@ const Checkout = () => {
           // Backend ko zaroori anya details bhi yahan add kar sakte hain
           name: item.name,
           price: item.price,
-          image: item.product?.imagePath || item.product?.images?.[0] || item.imagePath,
+          // Image is loaded client-side via product id + hasImage; keep URL only if absolute
+          image: item.product?.imagePath || item.imagePath || null,
         };
       })
       .filter(Boolean);
@@ -450,6 +455,13 @@ const Checkout = () => {
     }
   };
 
+  // Handler for image loading errors
+  const handleImageError = (e) => {
+    // Prevent infinite loop if the fallback image itself fails to load
+    if (!e.target.src.startsWith('https://via.placeholder.com')) {
+      e.target.src = fallbackPlaceholderImage;
+    }
+  };
   if ((checkoutItems || []).length === 0 && !isSuccess) return null;
 
   // ─── Success Screen ───────────────────────────────────────────────────────
@@ -516,15 +528,17 @@ const Checkout = () => {
           <div className="space-y-3 max-h-72 overflow-y-auto">
             {localItems.map((item, i) => {
               const name = item.product?.name || item.name || 'Product';
-              const img =
-                item.product?.image_path ||
-                item.product?.images?.[0] ||
-                item.product?.imagePath;
+              const img = getProductImage(item.product || item);
               return (
                 <div key={i} className="flex gap-3 items-start p-2 rounded-xl hover:bg-gray-50">
                   <div className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-100">
                     {img ? (
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={img}
+                        alt={name} // Use product name for alt text
+                        className="w-full h-full object-cover"
+                        onError={handleImageError} // Add onError handler
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">N/A</div>
                     )}

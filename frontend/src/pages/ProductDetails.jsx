@@ -38,17 +38,31 @@ const ProductDetails = () => {
     }
   }, [product]);
 
-  const handleImageError = (index) => {
-    setImageErrors(prev => ({ ...prev, [index]: true }));
+  const fallbackPlaceholderImage = `https://via.placeholder.com/512/f0f0f0/999999?text=No+Image`;
+  const handleImageError = (e) => {
+    // Prevent infinite loop if the fallback image itself fails to load
+    if (!e.target.src.startsWith('https://via.placeholder.com')) {
+      e.target.src = fallbackPlaceholderImage;
+    }
   };
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const { data } = await api.get(`/products/${id}`);
+        // images[] is stripped on API — build gallery slots from imageCount / hasImage
+        const count = Math.max(
+          Number(data.imageCount) || 0,
+          data.hasImage ? 1 : 0,
+          data.imagePath ? 1 : 0,
+          Array.isArray(data.images) ? data.images.length : 0
+        );
         const productData = {
           ...data,
-          images: data.images?.length > 0 ? data.images : [data.imagePath || 'https://via.placeholder.com/600'],
+          hasImage: data.hasImage ?? count > 0,
+          imageCount: count || (data.hasImage ? 1 : 0),
+          // Index placeholders for thumbnail strip (URLs resolved via getProductImageByIndex)
+          images: Array.from({ length: Math.max(count, 1) }, (_, i) => i),
           rating: data.averageRating || 4.2,
           reviews: data.reviews || [],
         };
@@ -213,6 +227,7 @@ const ProductDetails = () => {
               src={getProductImageByIndex(product, activeImage)} 
               alt={product.name} 
               className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110 relative z-10 drop-shadow-xl"
+              onError={handleImageError}
             />
           </div>
           
@@ -226,7 +241,8 @@ const ProductDetails = () => {
                 <img 
                   src={getProductImageByIndex(product, idx)} 
                   alt="" 
-                  className="w-full h-full object-cover rounded-lg" 
+                  className="w-full h-full object-cover rounded-lg"
+                  onError={handleImageError}
                 />
               </button>
             ))}

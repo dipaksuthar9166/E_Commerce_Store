@@ -373,3 +373,90 @@ exports.updateConfig = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+const Coupon = require('../models/Coupon');
+const Banner = require('../models/Banner');
+
+// @desc    Reset platform history / full data wipe (keeps admin accounts + config)
+// @route   POST /api/admin/reset-data
+// @access  Private (admin)
+// body: { mode: 'history' | 'full', confirmText: 'RESET', password }
+exports.resetPlatformData = async (req, res) => {
+  try {
+    const { mode, confirmText, password } = req.body;
+
+    if (!['history', 'full'].includes(mode)) {
+      return res.status(400).json({
+        message: "Invalid mode. Use 'history' (orders only) or 'full' (everything except admins).",
+      });
+    }
+
+    if (confirmText !== 'RESET') {
+      return res.status(400).json({
+        message: "Type RESET exactly in confirmText to proceed.",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({ message: 'Admin password is required to reset data.' });
+    }
+
+    // Re-verify admin password before destructive action
+    const adminWithPassword = await User.findById(req.user._id);
+    if (!adminWithPassword) {
+      return res.status(401).json({ message: 'Admin account not found.' });
+    }
+    const passwordOk = await adminWithPassword.comparePassword(password);
+    if (!passwordOk) {
+      return res.status(401).json({ message: 'Incorrect password. Reset aborted.' });
+    }
+
+    const deleted = {
+      orders: 0,
+      products: 0,
+      coupons: 0,
+      banners: 0,
+      shops: 0,
+      shopCategories: 0,
+      users: 0,
+    };
+
+    // Always wipe order history first
+    const orderResult = await Order.deleteMany({});
+    deleted.orders = orderResult.deletedCount || 0;
+
+    if (mode === 'full') {
+      const [products, coupons, banners, shops, shopCategories, users] = await Promise.all([
+        Product.deleteMany({}),
+        Coupon.deleteMany({}),
+        Banner.deleteMany({}),
+        Shop.deleteMany({}),
+        Category.deleteMany({ isGlobal: { $ne: true } }),
+        // Keep all admin accounts; remove customers, vendors, delivery
+        User.deleteMany({ role: { $ne: 'admin' } }),
+      ]);
+
+      deleted.products = products.deletedCount || 0;
+      deleted.coupons = coupons.deletedCount || 0;
+      deleted.banners = banners.deletedCount || 0;
+      deleted.shops = shops.deletedCount || 0;
+      deleted.shopCategories = shopCategories.deletedCount || 0;
+      deleted.users = users.deletedCount || 0;
+
+      // Clear wishlists on remaining admin accounts
+      await User.updateMany({ role: 'admin' }, { $set: { wishlist: [], addresses: [] } });
+    }
+
+    res.status(200).json({
+      message:
+        mode === 'history'
+          ? 'Order history has been reset successfully.'
+          : 'Full platform data has been reset. Admin accounts and global settings were kept.',
+      mode,
+      deleted,
+    });
+  } catch (error) {
+    console.error('resetPlatformData error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

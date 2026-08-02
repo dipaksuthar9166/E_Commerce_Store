@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Zap, Tag, CheckSquare, Square, Percent, Loader2, Save } from 'lucide-react';
 import api from '../../api/axios';
+import { getProductImage } from '../../utils/productImage';
 
 const VendorPromotions = () => {
   const [products, setProducts] = useState([]);
@@ -200,7 +201,7 @@ const VendorPromotions = () => {
                     </div>
                     
                     <div className="w-12 h-12 rounded-lg bg-gray-50 overflow-hidden shrink-0 p-1 border border-gray-100">
-                      <img src={`/api/products/${product._id}/image`} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
+                      <img src={getProductImage(product)} alt={product.name} className="w-full h-full object-contain mix-blend-multiply" />
                     </div>
                     
                     <div className="flex-1 min-w-0">

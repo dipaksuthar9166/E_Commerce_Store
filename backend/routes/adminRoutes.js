@@ -19,5 +19,6 @@ router.put('/categories/:id', adminController.updateGlobalCategory);
 router.delete('/categories/:id', adminController.deleteGlobalCategory);
 router.get('/config', adminController.getConfig);
 router.put('/config', adminController.updateConfig);
+router.post('/reset-data', adminController.resetPlatformData);
 
 module.exports = router;

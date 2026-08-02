@@ -1,5 +1,6 @@
 const Shop = require('../models/Shop');
 const Product = require('../models/Product');
+const { formatProductForClient } = require('../utils/productImageHelper');
 
 // Get all active shops
 exports.getShops = async (req, res) => {
@@ -35,8 +36,9 @@ exports.getShopProducts = async (req, res) => {
         { description: { $regex: search, $options: 'i' } }
       ];
     }
-    const products = await Product.find(query);
-    res.json(products);
+    const products = await Product.find(query).lean();
+    // Never send binary buffers in list JSON — client uses /products/:id/image
+    res.json(products.map((p) => formatProductForClient(p)));
   } catch (error) {
     res.status(500).json({ message: 'Server Error fetching shop products', error: error.message });
   }
@@ -59,8 +61,9 @@ exports.getFeaturedProducts = async (req, res) => {
     const products = await Product.find(query)
       .limit(limit)
       .populate('shopId', 'shopName')
-      .sort({ createdAt: -1 });
-    res.json(products);
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(products.map((p) => formatProductForClient(p)));
   } catch (error) {
     res.status(500).json({ message: 'Server Error fetching products', error: error.message });
   }
@@ -149,8 +152,9 @@ exports.getProductsByCategory = async (req, res) => {
         .populate('shopId', 'shopName address')
         .populate('categoryId', 'name')
         .sort({ discount_percent: -1, createdAt: -1 })
-        .limit(50);
-      return res.json(offerProducts);
+        .limit(50)
+        .lean();
+      return res.json(offerProducts.map((p) => formatProductForClient(p)));
     }
 
     // Find all vendor categories that match this name (case-insensitive, all sellers)
@@ -175,9 +179,10 @@ exports.getProductsByCategory = async (req, res) => {
       .populate('shopId', 'shopName address')
       .populate('categoryId', 'name')
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
 
-    res.json(products);
+    res.json(products.map((p) => formatProductForClient(p)));
   } catch (error) {
     res.status(500).json({ message: 'Server Error fetching category products', error: error.message });
   }

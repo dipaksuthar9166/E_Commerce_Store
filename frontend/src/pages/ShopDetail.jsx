@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { ArrowLeft, Star, MapPin, Clock, Plus, Check, Loader2 } from 'lucide-react';
 import api from '../api/axios';
-import { getProductImage } from '../utils/productImage';
+import { getProductImage, productHasImage } from '../utils/productImage';
 
 const ShopDetail = () => {
   const { id } = useParams();
@@ -125,8 +125,8 @@ const ShopDetail = () => {
               <div key={product._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-shadow flex flex-col h-full group">
                 <Link to={`/product/${product._id}`} className="contents">
                   <div className="aspect-square mb-4 rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-                    {product.imagePath ? (
-                      <img src={`/api/products/${product._id}/image`} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    {productHasImage(product) ? (
+                      <img src={getProductImage(product)} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     ) : (
                       <span className="text-4xl">🛒</span>
                     )}

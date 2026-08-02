@@ -144,6 +144,18 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Multer / upload errors → clear JSON (instead of raw HTML 500)
+app.use((err, req, res, next) => {
+  if (err instanceof require('multer').MulterError) {
+    return res.status(400).json({ message: `Upload error: ${err.message}` });
+  }
+  if (err && err.message && /Invalid file type|Only Excel/i.test(err.message)) {
+    return res.status(400).json({ message: err.message });
+  }
+  return next(err);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
