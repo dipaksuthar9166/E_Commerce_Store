@@ -17,6 +17,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeliveryLocation } from '../contexts/LocationContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from './ThemeToggle';
 import { Brand, BrandMark } from './BrandMark';
 
@@ -132,18 +133,20 @@ const AccountMenu = ({ variant = 'desktop' }) => {
 
   const trigger =
     variant === 'mobile' ? (
-      <button
+      <motion.button
+        whileTap={{ scale: 0.9 }}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold ring-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-95 transition-transform"
+        className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold ring-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
         aria-label="Account menu"
         aria-expanded={open}
         aria-haspopup="menu"
       >
         {(user.name || 'U').charAt(0).toUpperCase()}
-      </button>
+      </motion.button>
     ) : (
-      <button
+      <motion.button
+        whileTap={{ scale: 0.95 }}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
@@ -164,11 +167,16 @@ const AccountMenu = ({ variant = 'desktop' }) => {
     <div className="relative" ref={menuRef}>
       {trigger}
 
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl border border-slate-100 bg-white p-2 shadow-xl z-[60]"
-        >
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            role="menu"
+            className="absolute right-0 top-full mt-1.5 w-52 rounded-2xl border border-slate-100 bg-white p-2 shadow-xl z-[60]"
+          >
           <div className="px-3 py-2 border-b border-slate-100 mb-1">
             <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
             {user.email && (
@@ -200,8 +208,9 @@ const AccountMenu = ({ variant = 'desktop' }) => {
           >
             <LogOut className="w-4 h-4" /> Logout
           </button>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

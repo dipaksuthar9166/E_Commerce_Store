@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import PromoBannerSlider from '../components/PromoBannerSlider';
 import ProductCard from '../components/ProductCard';
 import usePublicCategories from '../hooks/usePublicCategories';
@@ -51,6 +52,21 @@ const Home = () => {
     (p) => (p.discount_percent || p.discount || 0) > 0
   );
   const showDeals = dealProducts.length > 0 ? dealProducts : products.slice(0, 4);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const sectionVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }
+  };
 
   return (
     <div className="animate-in fade-in duration-500 max-w-[1200px] mx-auto space-y-8 md:space-y-10">
@@ -119,7 +135,12 @@ const Home = () => {
 
       {/* Deals strip — products only (neutral, not rainbow) */}
       {!loading && products.length > 0 && (
-        <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm">
+        <motion.section 
+          variants={sectionVariants} 
+          initial="hidden" 
+          animate="visible"
+          className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm"
+        >
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-slate-900 font-bold text-lg flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-blue-600" />
@@ -129,13 +150,18 @@ const Home = () => {
               See more →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          >
             {showDeals.slice(0, 4).map((product) => (
-              <Link
-                key={product._id}
-                to={`/product/${product._id}`}
-                className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 hover:border-slate-200 hover:bg-white transition-colors"
-              >
+              <motion.div key={product._id} variants={sectionVariants}>
+                <Link
+                  to={`/product/${product._id}`}
+                  className="block bg-slate-50 border border-slate-100 rounded-xl p-2.5 hover:border-slate-200 hover:bg-white transition-colors h-full"
+                >
                 <div className="aspect-square rounded-lg bg-slate-50 flex items-center justify-center p-2 mb-2 overflow-hidden">
                   <img
                     src={getProductImage(product)}
@@ -149,10 +175,11 @@ const Home = () => {
                 <p className="text-sm font-bold text-slate-900 mt-0.5">
                   ₹{Number(product.price).toLocaleString('en-IN')}
                 </p>
-              </Link>
+                </Link>
+              </motion.div>
             ))}
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
       )}
 
       {/* Featured products */}
@@ -198,16 +225,27 @@ const Home = () => {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"
+          >
             {products.map((product, idx) => (
               <ProductCard key={product._id} product={product} index={idx} />
             ))}
-          </div>
+          </motion.div>
         )}
       </section>
 
       {/* CTA banner — solid blue, no multi-color gradient */}
-      <section className="rounded-2xl border border-slate-200 bg-slate-900 overflow-hidden">
+      <motion.section 
+        variants={sectionVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-50px" }}
+        className="rounded-2xl border border-slate-200 bg-slate-900 overflow-hidden"
+      >
         <div className="px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">

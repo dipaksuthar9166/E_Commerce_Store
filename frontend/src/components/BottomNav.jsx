@@ -1,6 +1,7 @@
 import React from 'react';
 import { Home, Package, ShoppingCart, ClipboardList, Heart } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useCart } from '../contexts/CartContext';
 
 const BottomNav = () => {
@@ -31,19 +32,31 @@ const BottomNav = () => {
                 active ? 'text-blue-600' : 'text-slate-400'
               }`}
             >
-              <div className="relative">
+              <motion.div 
+                whileTap={{ scale: 0.85 }} 
+                animate={{ scale: active ? 1.1 : 1 }}
+                className="relative"
+              >
                 <Icon className={`w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`} />
                 {item.badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+                  <motion.span 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5"
+                  >
                     {item.badge}
-                  </span>
+                  </motion.span>
                 )}
-              </div>
+              </motion.div>
               <span className={`text-[10px] ${active ? 'font-bold' : 'font-medium'}`}>
                 {item.label}
               </span>
               {active && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-blue-600" />
+                <motion.span 
+                  layoutId="bottomNavIndicator"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-blue-600" 
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
               )}
             </Link>
           );

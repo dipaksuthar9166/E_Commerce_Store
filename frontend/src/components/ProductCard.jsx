@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, ShoppingCart, Star, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getProductImage } from '../utils/productImage';
@@ -84,16 +85,33 @@ const ProductCard = ({ product, index = 0 }) => {
     setTimeout(() => setAdded(false), 1400);
   };
 
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      transition: { duration: 0.4, ease: 'easeOut' }
+    }
+  };
+
   return (
-    <div className="group card-surface card-hover flex flex-col overflow-hidden h-full">
+    <motion.div 
+      variants={itemVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className="group card-surface card-hover flex flex-col overflow-hidden h-full shadow-sm hover:shadow-md transition-shadow bg-white rounded-2xl"
+    >
       <Link to={`/product/${product._id}`} className="block relative">
         <div
           className={`relative aspect-[4/3] bg-gradient-to-br ${tint} flex items-center justify-center p-4 overflow-hidden`}
         >
-          <img
+          <motion.img
             src={image}
             alt={product.name}
-            className="w-full h-full object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-400"
+            className="w-full h-full object-contain drop-shadow-md"
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.3 }}
             onError={() => setImgError(true)}
             loading="lazy"
             decoding="async"
@@ -101,18 +119,19 @@ const ProductCard = ({ product, index = 0 }) => {
           />
 
           {/* Wishlist */}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.8 }}
             type="button"
             onClick={handleWishlist}
             aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            className={`absolute top-2.5 right-2.5 p-2 rounded-full shadow-sm backdrop-blur-md transition-all ${
+            className={`absolute top-2.5 right-2.5 p-2 rounded-full shadow-sm backdrop-blur-md transition-colors ${
               wishlisted
                 ? 'bg-rose-500 text-white'
                 : 'bg-white/90 text-gray-400 hover:text-rose-500'
             }`}
           >
             <Heart className={`w-3.5 h-3.5 ${wishlisted ? 'fill-current' : ''}`} />
-          </button>
+          </motion.button>
 
           {/* Discount badge */}
           {discount > 0 && (
@@ -171,29 +190,34 @@ const ProductCard = ({ product, index = 0 }) => {
           )}
         </div>
 
-        <button
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           type="button"
           onClick={handleAdd}
           disabled={product.stock === 0}
-          className={`mt-auto w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`mt-auto w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
             added
               ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200'
               : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-200/60'
           }`}
         >
           {added ? (
-            <>
+            <motion.div 
+              initial={{ scale: 0 }} 
+              animate={{ scale: 1 }} 
+              className="flex items-center gap-1.5"
+            >
               <Check className="w-4 h-4" /> Added
-            </>
+            </motion.div>
           ) : (
-            <>
+            <div className="flex items-center gap-1.5">
               <ShoppingCart className="w-3.5 h-3.5" />
               Add to Cart
-            </>
+            </div>
           )}
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

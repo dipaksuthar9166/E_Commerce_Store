@@ -2,6 +2,7 @@ import React from 'react';
 import { useCart } from '../contexts/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ArrowRight, ShoppingBag, Truck } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getProductImage } from '../utils/productImage';
 
 const Cart = () => {
@@ -83,10 +84,16 @@ const Cart = () => {
              </label>
           </div>
 
+          <AnimatePresence>
           {cartItems.map((item) => {
             const img = getProductImage(item.product);
             return (
-              <div
+              <motion.div
+                layout
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, x: -50 }}
+                transition={{ duration: 0.2 }}
                 key={item.cartItemId}
                 className={`card-surface p-4 flex gap-4 transition-colors ${!item.selected ? 'bg-slate-50' : ''}`}
               >
@@ -160,9 +167,10 @@ const Cart = () => {
                     </span>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
 
         <div className="lg:col-span-4">

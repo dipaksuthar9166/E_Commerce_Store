@@ -18,6 +18,7 @@ import {
   reverseGeocodeWithMapsJs,
   searchPlacesGoogle,
 } from '../utils/googleMaps';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const DEFAULT_CENTER = { lat: 28.6139, lng: 77.209 };
 const MAP_CONTAINER_STYLE = { width: '100%', height: '100%' };
@@ -35,13 +36,22 @@ const mapOptions = {
 function ModalShell({ children, onClose, subtitle }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <button
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         type="button"
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
         aria-label="Close location picker"
         onClick={onClose}
       />
-      <div className="relative w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[94vh] flex flex-col">
+      <motion.div 
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="relative w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[94vh] flex flex-col"
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-500/15 text-blue-600 flex items-center justify-center">
@@ -66,7 +76,7 @@ function ModalShell({ children, onClose, subtitle }) {
           </button>
         </div>
         {children}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -423,20 +433,20 @@ function GoogleLocationPicker({ onClose }) {
 const LocationPickerModal = () => {
   const { isPickerOpen, closePicker } = useDeliveryLocation();
 
-  if (!isPickerOpen) return null;
-
-  if (!hasGoogleMapsKey()) {
-    return (
-      <ModalShell onClose={closePicker} subtitle="Google Maps API key required">
-        <MissingApiKeyContent onClose={closePicker} />
-      </ModalShell>
-    );
-  }
-
   return (
-    <ModalShell onClose={closePicker} subtitle="Google Maps — drag pin or search place">
-      <GoogleLocationPicker onClose={closePicker} />
-    </ModalShell>
+    <AnimatePresence>
+      {isPickerOpen && (
+        !hasGoogleMapsKey() ? (
+          <ModalShell onClose={closePicker} subtitle="Google Maps API key required">
+            <MissingApiKeyContent onClose={closePicker} />
+          </ModalShell>
+        ) : (
+          <ModalShell onClose={closePicker} subtitle="Google Maps — drag pin or search place">
+            <GoogleLocationPicker onClose={closePicker} />
+          </ModalShell>
+        )
+      )}
+    </AnimatePresence>
   );
 };
 
