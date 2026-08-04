@@ -160,7 +160,7 @@ const AccountMenu = ({ variant = 'desktop' }) => {
         <ChevronDown
           className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
         />
-      </button>
+      </motion.button>
     );
 
   return (

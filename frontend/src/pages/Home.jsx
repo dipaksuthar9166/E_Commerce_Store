@@ -265,7 +265,7 @@ const Home = () => {
             Start selling
           </Link>
         </div>
-      </section>
+      </motion.section>
     </div>
   );
 };
