@@ -40,9 +40,11 @@ const BottomNav = () => {
                 <Icon className={`w-5 h-5 ${active ? 'stroke-[2.5]' : ''}`} />
                 {item.badge > 0 && (
                   <motion.span 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5"
+                    key={item.badge}
+                    initial={{ scale: 0, y: 10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 shadow-sm"
                   >
                     {item.badge}
                   </motion.span>

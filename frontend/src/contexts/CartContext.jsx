@@ -1,4 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import toast from 'react-hot-toast';
+import { playCartSound } from '../utils/sound';
 
 const CartContext = createContext();
 
@@ -13,16 +15,12 @@ const generateCartItemId = (product, size, color) => {
 };
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]);
-  
-  // Try to load cart from localStorage on init
-  useEffect(() => {
-    const savedCart = localStorage.getItem('hyperlocal_cart');
-    if (savedCart) {
-      try {
-        // Ensure all items have necessary properties
-        const parsedCart = JSON.parse(savedCart);
-        const validatedCart = parsedCart.map(item => {
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hyperlocal_cart');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map(item => {
           const cartItemId = item.cartItemId || generateCartItemId(item.product, item.selectedSize, item.selectedColor);
           return { 
             ...item, 
@@ -30,12 +28,12 @@ export const CartProvider = ({ children }) => {
             selected: typeof item.selected === 'boolean' ? item.selected : true 
           };
         });
-        setCartItems(validatedCart);
-      } catch (e) {
-        console.error("Failed to parse cart", e);
       }
+    } catch (e) {
+      console.error("Failed to parse cart", e);
     }
-  }, []);
+    return [];
+  });
 
   // Save to localStorage whenever cart changes
   useEffect(() => {
@@ -86,6 +84,12 @@ export const CartProvider = ({ children }) => {
         selected: true,
       }];
     });
+
+    toast.success(`${addQty > 1 ? addQty + ' x ' : ''}${product.name || 'Item'} added to cart!`, {
+      icon: '🛒',
+    });
+    
+    playCartSound();
   };
 
   /** Bulk-add from reorder API (single state update) */

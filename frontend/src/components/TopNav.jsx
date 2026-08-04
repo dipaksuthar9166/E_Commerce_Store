@@ -17,7 +17,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeliveryLocation } from '../contexts/LocationContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import ThemeToggle from './ThemeToggle';
 import { Brand, BrandMark } from './BrandMark';
 
@@ -287,9 +287,15 @@ const TopNav = ({ toggleSidebar }) => {
             <div className="relative">
               <ShoppingCart className="w-6 h-6" />
               {cartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold px-1 rounded-full border-2 border-white flex items-center justify-center">
+                <motion.span 
+                  key={cartCount}
+                  initial={{ scale: 0, y: -5 }}
+                  animate={{ scale: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                  className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold px-1 rounded-full border-2 border-white flex items-center justify-center"
+                >
                   {cartCount}
-                </span>
+                </motion.span>
               )}
             </div>
             <span className="font-semibold">Cart</span>
@@ -324,9 +330,15 @@ const TopNav = ({ toggleSidebar }) => {
             <Link to="/cart" className="p-2 text-slate-600 relative">
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+                <motion.span 
+                  key={cartCount}
+                  initial={{ scale: 0, y: -5 }}
+                  animate={{ scale: 1, y: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                  className="absolute top-0.5 right-0.5 min-w-[14px] h-3.5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5"
+                >
                   {cartCount}
-                </span>
+                </motion.span>
               )}
             </Link>
             <ThemeToggle variant="ghost" />

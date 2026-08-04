@@ -10,6 +10,20 @@ import {
 import api from '../api/axios';
 import { useNavigate } from 'react-router-dom';
 import CustomerOrderTracker from '../components/maps/CustomerOrderTracker';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
 
 /* ─── Status Config ─────────────────────────────────────────── */
 const statusConfig = {
@@ -93,16 +107,27 @@ const LiveTracker = ({ status }) => {
 
 /* ─── Modal shell ───────────────────────────────────────────── */
 const Modal = ({ title, onClose, children, wide }) => (
-  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <motion.div 
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+  >
     <button type="button" className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} aria-label="Close" />
-    <div className={`relative bg-white w-full ${wide ? 'max-w-lg' : 'max-w-md'} rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-200`}>
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95, y: 50 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 50 }}
+      transition={{ type: "spring", duration: 0.5 }}
+      className={`relative bg-white w-full ${wide ? 'max-w-lg' : 'max-w-md'} rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto`}
+    >
       <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
         <h3 className="font-bold text-gray-900">{title}</h3>
         <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 text-sm font-bold px-2">✕</button>
       </div>
       <div className="p-5">{children}</div>
-    </div>
-  </div>
+    </motion.div>
+  </motion.div>
 );
 
 const StarPicker = ({ value, onChange, label }) => (
@@ -204,7 +229,7 @@ const OrderCard = ({
     'bg-gradient-to-r from-rose-400 to-pink-400';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+    <motion.div variants={itemVariants} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
       <div className={`h-1 w-full ${topBar}`} />
 
       <div className="p-5">
@@ -482,7 +507,7 @@ const OrderCard = ({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -938,7 +963,7 @@ const Orders = () => {
                 {activeOrders.length} order{activeOrders.length > 1 ? 's' : ''}
               </span>
             </div>
-            <div className="space-y-4">
+            <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
               {activeOrders.map((order) => (
                 <OrderCard
                   key={order._id}
@@ -954,7 +979,7 @@ const Orders = () => {
                   onRefreshRefund={handleRefreshRefund}
                 />
               ))}
-            </div>
+            </motion.div>
           </section>
         )}
 
@@ -978,7 +1003,7 @@ const Orders = () => {
               />
             </button>
             {pastExpanded && (
-              <div className="space-y-4">
+              <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
                 {pastOrders.map((order) => (
                   <OrderCard
                     key={order._id}
@@ -994,244 +1019,246 @@ const Orders = () => {
                     onRefreshRefund={handleRefreshRefund}
                   />
                 ))}
-              </div>
+              </motion.div>
             )}
           </section>
         )}
       </div>
 
       {/* ── Modals ─────────────────────────────────────────── */}
-      {modal?.type === 'cancel' && (
-        <Modal title="Cancel order" onClose={() => setModal(null)}>
-          <p className="text-sm text-gray-600 mb-3">
-            Cancel order #{String(modal.order._id).slice(-8).toUpperCase()}? This cannot be undone.
-            {['upi', 'card', 'netbanking', 'pay_later', 'emi'].includes(modal.order.paymentMethod) && (
-              <span className="block mt-1 text-amber-700 text-xs">
-                A refund of ₹{modal.order.totalAmount} will be initiated to your original payment method.
-              </span>
-            )}
-          </p>
-          <textarea
-            value={form.reason || ''}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            placeholder="Reason for cancellation (optional)"
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
-            rows={3}
-          />
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-xl border font-bold text-sm">
-              Keep order
-            </button>
-            <button
-              type="button"
-              onClick={submitCancel}
-              disabled={submitting}
-              className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-60"
-            >
-              {submitting ? 'Cancelling…' : 'Confirm cancel'}
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {modal?.type === 'modify' && (
-        <Modal title="Modify delivery details" onClose={() => setModal(null)}>
-          <p className="text-xs text-gray-500 mb-3">You can edit address & contact only before the order is ready for pickup.</p>
-          <label className="block text-xs font-bold text-gray-500 mb-1">Delivery address</label>
-          <textarea
-            value={form.deliveryAddress || ''}
-            onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })}
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-3 resize-none"
-            rows={3}
-          />
-          <label className="block text-xs font-bold text-gray-500 mb-1">Contact phone</label>
-          <input
-            type="tel"
-            value={form.contactPhone || ''}
-            onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-3"
-          />
-          <label className="block text-xs font-bold text-gray-500 mb-1">Special instructions</label>
-          <textarea
-            value={form.specialInstructions || ''}
-            onChange={(e) => setForm({ ...form, specialInstructions: e.target.value })}
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
-            rows={2}
-          />
-          <button
-            type="button"
-            onClick={submitModify}
-            disabled={submitting}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
-          >
-            {submitting ? 'Saving…' : 'Save changes'}
-          </button>
-        </Modal>
-      )}
-
-      {modal?.type === 'return' && (
-        <Modal title="Return / Exchange" onClose={() => setModal(null)}>
-          <div className="flex gap-2 mb-3">
-            {['return', 'exchange'].map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setForm({ ...form, type: t })}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold border capitalize ${
-                  form.type === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={form.reason || ''}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            placeholder="Reason (defective, wrong item, not as described…)"
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
-            rows={3}
-            required
-          />
-          <button
-            type="button"
-            onClick={submitReturn}
-            disabled={submitting}
-            className="w-full py-2.5 rounded-xl bg-orange-600 text-white font-bold text-sm disabled:opacity-60"
-          >
-            {submitting ? 'Submitting…' : `Submit ${form.type} request`}
-          </button>
-        </Modal>
-      )}
-
-      {modal?.type === 'feedback' && (
-        <Modal title="Rate delivery experience" onClose={() => setModal(null)}>
-          <div className="space-y-4 mb-4">
-            <StarPicker
-              label="Delivery agent"
-              value={form.rating || 5}
-              onChange={(n) => setForm({ ...form, rating: n })}
-            />
-            <StarPicker
-              label="Packaging quality"
-              value={form.packagingRating || 5}
-              onChange={(n) => setForm({ ...form, packagingRating: n })}
-            />
+      <AnimatePresence>
+        {modal?.type === 'cancel' && (
+          <Modal title="Cancel order" onClose={() => setModal(null)}>
+            <p className="text-sm text-gray-600 mb-3">
+              Cancel order #{String(modal.order._id).slice(-8).toUpperCase()}? This cannot be undone.
+              {['upi', 'card', 'netbanking', 'pay_later', 'emi'].includes(modal.order.paymentMethod) && (
+                <span className="block mt-1 text-amber-700 text-xs">
+                  A refund of ₹{modal.order.totalAmount} will be initiated to your original payment method.
+                </span>
+              )}
+            </p>
             <textarea
-              value={form.comment || ''}
-              onChange={(e) => setForm({ ...form, comment: e.target.value })}
-              placeholder="Any comments? (optional)"
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none"
+              value={form.reason || ''}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              placeholder="Reason for cancellation (optional)"
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
               rows={3}
             />
-          </div>
-          <button
-            type="button"
-            onClick={submitFeedback}
-            disabled={submitting}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
-          >
-            {submitting ? 'Submitting…' : 'Submit feedback'}
-          </button>
-        </Modal>
-      )}
-
-      {modal?.type === 'review' && (
-        <Modal title="Rate & review product" onClose={() => setModal(null)} wide>
-          {modal.products?.length > 0 ? (
-            <>
-              <label className="block text-xs font-bold text-gray-500 mb-1">Product</label>
-              <select
-                value={form.productId || ''}
-                onChange={(e) => setForm({ ...form, productId: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-3 bg-white"
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setModal(null)} className="flex-1 py-2.5 rounded-xl border font-bold text-sm">
+                Keep order
+              </button>
+              <button
+                type="button"
+                onClick={submitCancel}
+                disabled={submitting}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm disabled:opacity-60"
               >
-                {modal.products.map((p) => (
-                  <option key={p._id} value={p._id}>{p.name}</option>
-                ))}
-              </select>
+                {submitting ? 'Cancelling…' : 'Confirm cancel'}
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {modal?.type === 'modify' && (
+          <Modal title="Modify delivery details" onClose={() => setModal(null)}>
+            <p className="text-xs text-gray-500 mb-3">You can edit address & contact only before the order is ready for pickup.</p>
+            <label className="block text-xs font-bold text-gray-500 mb-1">Delivery address</label>
+            <textarea
+              value={form.deliveryAddress || ''}
+              onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-3 resize-none"
+              rows={3}
+            />
+            <label className="block text-xs font-bold text-gray-500 mb-1">Contact phone</label>
+            <input
+              type="tel"
+              value={form.contactPhone || ''}
+              onChange={(e) => setForm({ ...form, contactPhone: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-3"
+            />
+            <label className="block text-xs font-bold text-gray-500 mb-1">Special instructions</label>
+            <textarea
+              value={form.specialInstructions || ''}
+              onChange={(e) => setForm({ ...form, specialInstructions: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
+              rows={2}
+            />
+            <button
+              type="button"
+              onClick={submitModify}
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
+            >
+              {submitting ? 'Saving…' : 'Save changes'}
+            </button>
+          </Modal>
+        )}
+
+        {modal?.type === 'return' && (
+          <Modal title="Return / Exchange" onClose={() => setModal(null)}>
+            <div className="flex gap-2 mb-3">
+              {['return', 'exchange'].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setForm({ ...form, type: t })}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border capitalize ${
+                    form.type === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={form.reason || ''}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              placeholder="Reason (defective, wrong item, not as described…)"
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
+              rows={3}
+              required
+            />
+            <button
+              type="button"
+              onClick={submitReturn}
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl bg-orange-600 text-white font-bold text-sm disabled:opacity-60"
+            >
+              {submitting ? 'Submitting…' : `Submit ${form.type} request`}
+            </button>
+          </Modal>
+        )}
+
+        {modal?.type === 'feedback' && (
+          <Modal title="Rate delivery experience" onClose={() => setModal(null)}>
+            <div className="space-y-4 mb-4">
               <StarPicker
-                label="Rating"
+                label="Delivery agent"
                 value={form.rating || 5}
                 onChange={(n) => setForm({ ...form, rating: n })}
+              />
+              <StarPicker
+                label="Packaging quality"
+                value={form.packagingRating || 5}
+                onChange={(n) => setForm({ ...form, packagingRating: n })}
               />
               <textarea
                 value={form.comment || ''}
                 onChange={(e) => setForm({ ...form, comment: e.target.value })}
-                placeholder="Write your review…"
-                className="w-full border border-gray-200 rounded-xl p-3 text-sm mt-3 mb-3 resize-none"
+                placeholder="Any comments? (optional)"
+                className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none"
                 rows={3}
               />
-              <label className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer mb-4">
-                <ImagePlus size={14} />
-                Add photos
-                <input type="file" accept="image/*" multiple className="hidden" onChange={onPickReviewImages} />
-              </label>
-              {form.images?.length > 0 && (
-                <div className="flex gap-2 mb-3">
-                  {form.images.map((src, i) => (
-                    <img key={i} src={src} alt="" className="w-14 h-14 rounded-lg object-cover border" />
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={submitReview}
-                disabled={submitting}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
-              >
-                {submitting ? 'Submitting…' : 'Post review'}
-              </button>
-            </>
-          ) : (
-            <p className="text-sm text-gray-500">No products available to review.</p>
-          )}
-        </Modal>
-      )}
+            </div>
+            <button
+              type="button"
+              onClick={submitFeedback}
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
+            >
+              {submitting ? 'Submitting…' : 'Submit feedback'}
+            </button>
+          </Modal>
+        )}
 
-      {modal?.type === 'support' && (
-        <Modal title="Customer support" onClose={() => setModal(null)}>
-          <div className="flex gap-2 mb-4">
-            <a
-              href="tel:+918000000000"
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+        {modal?.type === 'review' && (
+          <Modal title="Rate & review product" onClose={() => setModal(null)} wide>
+            {modal.products?.length > 0 ? (
+              <>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Product</label>
+                <select
+                  value={form.productId || ''}
+                  onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-3 bg-white"
+                >
+                  {modal.products.map((p) => (
+                    <option key={p._id} value={p._id}>{p.name}</option>
+                  ))}
+                </select>
+                <StarPicker
+                  label="Rating"
+                  value={form.rating || 5}
+                  onChange={(n) => setForm({ ...form, rating: n })}
+                />
+                <textarea
+                  value={form.comment || ''}
+                  onChange={(e) => setForm({ ...form, comment: e.target.value })}
+                  placeholder="Write your review…"
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm mt-3 mb-3 resize-none"
+                  rows={3}
+                />
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer mb-4">
+                  <ImagePlus size={14} />
+                  Add photos
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={onPickReviewImages} />
+                </label>
+                {form.images?.length > 0 && (
+                  <div className="flex gap-2 mb-3">
+                    {form.images.map((src, i) => (
+                      <img key={i} src={src} alt="" className="w-14 h-14 rounded-lg object-cover border" />
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={submitReview}
+                  disabled={submitting}
+                  className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
+                >
+                  {submitting ? 'Submitting…' : 'Post review'}
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No products available to review.</p>
+            )}
+          </Modal>
+        )}
+
+        {modal?.type === 'support' && (
+          <Modal title="Customer support" onClose={() => setModal(null)}>
+            <div className="flex gap-2 mb-4">
+              <a
+                href="tel:+918000000000"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+              >
+                <Phone size={14} /> Call
+              </a>
+              <a
+                href={`mailto:support@mersko.app?subject=Order%20${String(modal.order._id).slice(-8)}`}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
+              >
+                <MessageCircle size={14} /> Email
+              </a>
+            </div>
+            <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+              <AlertTriangle size={12} /> Or raise a ticket for this order
+            </p>
+            <input
+              type="text"
+              value={form.subject || ''}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              placeholder="Subject"
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-2"
+            />
+            <textarea
+              value={form.message || ''}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              placeholder="Describe your issue…"
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
+              rows={3}
+            />
+            <button
+              type="button"
+              onClick={submitSupport}
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
             >
-              <Phone size={14} /> Call
-            </a>
-            <a
-              href={`mailto:support@mersko.app?subject=Order%20${String(modal.order._id).slice(-8)}`}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50"
-            >
-              <MessageCircle size={14} /> Email
-            </a>
-          </div>
-          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-            <AlertTriangle size={12} /> Or raise a ticket for this order
-          </p>
-          <input
-            type="text"
-            value={form.subject || ''}
-            onChange={(e) => setForm({ ...form, subject: e.target.value })}
-            placeholder="Subject"
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-2"
-          />
-          <textarea
-            value={form.message || ''}
-            onChange={(e) => setForm({ ...form, message: e.target.value })}
-            placeholder="Describe your issue…"
-            className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
-            rows={3}
-          />
-          <button
-            type="button"
-            onClick={submitSupport}
-            disabled={submitting}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-60"
-          >
-            {submitting ? 'Submitting…' : 'Raise ticket'}
-          </button>
-        </Modal>
-      )}
+              {submitting ? 'Submitting…' : 'Raise ticket'}
+            </button>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

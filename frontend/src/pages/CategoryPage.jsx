@@ -2,121 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useParams, Link } from 'react-router-dom';
 import { Package, Heart, ShoppingCart, Loader2, ArrowLeft, SlidersHorizontal, Star, ChevronDown } from 'lucide-react';
 import api from '../api/axios';
-import { useCart } from '../contexts/CartContext';
 import { resolveCategoryFromKey } from '../data/customerCategories';
 import usePublicCategories from '../hooks/usePublicCategories';
-import { getProductImage, productHasImage } from '../utils/productImage';
+import ProductCard from '../components/ProductCard';
+import { motion } from 'framer-motion';
 
-/* Neutral placeholders only */
-const GRADIENTS = [
-  'from-slate-200 to-slate-300',
-  'from-slate-100 to-slate-200',
-  'from-blue-50 to-slate-200',
-];
-
-const getGradient = (id) => {
-  const hash = (id || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return GRADIENTS[hash % GRADIENTS.length];
-};
-
-// ── Product Card ──────────────────────────────────────────
-const ProductCard = ({ product, onAdd }) => {
-  const gradient = getGradient(product._id);
-  const inStock = product.stock > 0;
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-      <Link to={`/product/${product._id}`} className="contents">
-        {/* Image / Gradient Placeholder */}
-        <div className="aspect-[4/3] relative overflow-hidden">
-          {productHasImage(product) ? (
-            <img src={getProductImage(product)} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-          ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-              <span className="text-white/30 text-7xl font-black">{product.name.charAt(0)}</span>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            </div>
-          )}
-        </div>
-      </Link>
-      <div className="relative">
-        <button className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 active:scale-90">
-          <Heart className="w-4 h-4" />
-        </button>
-
-        {/* Stock badge */}
-        {!inStock && (
-          <div className="absolute bottom-3 left-3 bg-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
-            Out of Stock
-          </div>
-        )}
-        {inStock && product.stock <= 5 && (
-          <div className="absolute bottom-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
-            Only {product.stock} left
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="p-4 space-y-3">
-        {/* Shop name */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-medium text-gray-400 truncate">
-            Sold by {product.shopId?.shopName || 'Verified Seller'}
-          </span>
-        </div>
-
-        {/* Product name */}
-        <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2">{product.name}</h3>
-
-        {product.description && (
-          <p className="text-xs text-gray-500 line-clamp-2">{product.description}</p>
-        )}
-
-        {/* Price row */}
-        <div className="flex items-end justify-between pt-1">
-          <div>
-            <div className="flex items-end gap-2">
-              <span className="text-xl font-black text-gray-900">
-                ₹{product.discount_percent > 0 ? Math.round(product.price * (1 - product.discount_percent / 100)) : product.price}
-              </span>
-              {product.discount_percent > 0 && (
-                <span className="text-gray-400 line-through">
-                  ₹{product.price}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs text-amber-500">
-            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-            <span className="font-semibold text-gray-500">4.2</span>
-          </div>
-        </div>
-
-        {/* Add to cart button */}
-        <button
-          onClick={() => {
-            const price = product.discount_percent > 0
-              ? Math.round(product.price * (1 - product.discount_percent / 100))
-              : product.price;
-            onAdd({
-              ...product,
-              price, // Pass the calculated price
-            });
-          }}
-          disabled={!inStock}
-          className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${
-            inStock
-              ? 'bg-primary hover:bg-primary-hover text-white shadow-sm hover:shadow-md'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          <ShoppingCart className="w-4 h-4" />
-          {inStock ? 'Add to Cart' : 'Out of Stock'}
-        </button>
-      </div>
-    </div>
-  );
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
 };
 
 // ── Loading Skeleton ──────────────────────────────────────
@@ -140,7 +36,6 @@ const CategoryPage = () => {
   const { categoryKey } = useParams();
   const { apiCategories, loading: catsLoading } = usePublicCategories();
   const category = resolveCategoryFromKey(categoryKey, apiCategories);
-  const { addToCart } = useCart();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('newest');
@@ -259,11 +154,16 @@ const CategoryPage = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {sorted.map((product) => (
-            <ProductCard key={product._id} product={product} onAdd={addToCart} />
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        >
+          {sorted.map((product, idx) => (
+            <ProductCard key={product._id} product={product} index={idx} />
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );

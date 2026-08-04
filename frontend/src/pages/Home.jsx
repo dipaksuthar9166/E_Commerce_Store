@@ -156,7 +156,12 @@ const Home = () => {
             animate="visible"
             className="grid grid-cols-2 md:grid-cols-4 gap-3"
           >
-            {showDeals.slice(0, 4).map((product) => (
+            {showDeals.slice(0, 4).map((product) => {
+              const discount = product.discount_percent || product.discount || 0;
+              const original = Number(product.price) || 0;
+              const price = discount > 0 ? Math.round(original * (1 - discount / 100)) : original;
+              
+              return (
               <motion.div key={product._id} variants={sectionVariants}>
                 <Link
                   to={`/product/${product._id}`}
@@ -172,12 +177,19 @@ const Home = () => {
                   />
                 </div>
                 <p className="text-xs font-semibold text-slate-800 line-clamp-1">{product.name}</p>
-                <p className="text-sm font-bold text-slate-900 mt-0.5">
-                  ₹{Number(product.price).toLocaleString('en-IN')}
-                </p>
+                <div className="flex items-baseline gap-1.5 mt-0.5">
+                  <p className="text-sm font-bold text-slate-900">
+                    ₹{price.toLocaleString('en-IN')}
+                  </p>
+                  {discount > 0 && (
+                    <p className="text-[10px] text-slate-400 line-through">
+                      ₹{original.toLocaleString('en-IN')}
+                    </p>
+                  )}
+                </div>
                 </Link>
               </motion.div>
-            ))}
+            )})}
           </motion.div>
         </motion.section>
       )}

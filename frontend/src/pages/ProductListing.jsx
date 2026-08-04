@@ -3,6 +3,15 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Package, Search, SlidersHorizontal } from 'lucide-react';
 import api from '../api/axios';
 import ProductCard from '../components/ProductCard';
+import { motion } from 'framer-motion';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
 
 /**
  * Flipkart-style product catalogue.
@@ -130,11 +139,16 @@ const ProductListing = () => {
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Showing products from all sellers · MERSKO catalogue</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"
+          >
             {filtered.map((product, idx) => (
               <ProductCard key={product._id} product={product} index={idx} />
             ))}
-          </div>
+          </motion.div>
         </>
       )}
     </div>

@@ -5,6 +5,21 @@ import { useCart } from '../contexts/CartContext';
 
 import api from '../api/axios';
 import { useAuth } from '../contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.8, transition: { duration: 0.2 } }
+};
 
 const Wishlist = () => {
   const [wishlistItems, setWishlistItems] = useState([]);
@@ -91,50 +106,66 @@ const Wishlist = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-          {wishlistItems.map((item) => (
-            <div key={item._id} className="card-surface card-hover overflow-hidden flex flex-col">
-              <div className="relative aspect-square p-4 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-                <img
-                  src={item.imagePath || item.image_path || `https://via.placeholder.com/256/f0f0f0/999999?text=No+Image`}
-                  alt={item.name}
-                  className="max-h-full object-contain"
-                  onError={handleImageError}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeFromWishlist(item._id)}
-                  className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100"
-                  title="Remove"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="p-4 flex flex-col flex-1">
-                <Link to={`/product/${item._id}`} className="hover:text-blue-600 transition-colors">
-                  <h3 className="text-sm font-semibold text-slate-800 line-clamp-2 mb-2 min-h-10">
-                    {item.name}
-                  </h3>
-                </Link>
-
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-lg font-bold text-slate-900">
-                    ₹{Number(item.price).toLocaleString('en-IN')}
-                  </span>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5"
+        >
+          <AnimatePresence>
+            {wishlistItems.map((item) => (
+              <motion.div
+                key={item._id}
+                variants={itemVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                layout
+                className="card-surface card-hover overflow-hidden flex flex-col"
+              >
+                <div className="relative aspect-square p-4 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+                  <img
+                    src={item.imagePath || item.image_path || `https://via.placeholder.com/256/f0f0f0/999999?text=No+Image`}
+                    alt={item.name}
+                    className="max-h-full object-contain"
+                    onError={handleImageError}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFromWishlist(item._id)}
+                    className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100"
+                    title="Remove"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => moveToCart(item)}
-                  className="mt-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors text-sm"
-                >
-                  <ShoppingCart className="w-4 h-4" /> Move to cart
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+                <div className="p-4 flex flex-col flex-1">
+                  <Link to={`/product/${item._id}`} className="hover:text-blue-600 transition-colors">
+                    <h3 className="text-sm font-semibold text-slate-800 line-clamp-2 mb-2 min-h-10">
+                      {item.name}
+                    </h3>
+                  </Link>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg font-bold text-slate-900">
+                      ₹{Number(item.price).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    onClick={() => moveToCart(item)}
+                    className="mt-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    <ShoppingCart className="w-4 h-4" /> Move to cart
+                  </motion.button>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       )}
     </div>
   );

@@ -10,6 +10,22 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { getProductImage } from '../utils/productImage';
+import { motion } from 'framer-motion';
+import confetti from 'canvas-confetti';
+import { playSuccessSound, playThankYouVoice } from '../utils/sound';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 }
+};
 
 // Fallback image URL
 const fallbackPlaceholderImage = `https://via.placeholder.com/128/f0f0f0/999999?text=N/A`;
@@ -189,6 +205,36 @@ const Checkout = () => {
       navigate('/cart');
     }
   }, [checkoutItems, isSuccess, navigate]);
+
+  useEffect(() => {
+    if (isSuccess) {
+      playSuccessSound();
+      playThankYouVoice();
+      const end = Date.now() + 2 * 1000;
+      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899'];
+
+      (function frame() {
+        confetti({
+          particleCount: 4,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: colors
+        });
+        confetti({
+          particleCount: 4,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: colors
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      }());
+    }
+  }, [isSuccess]);
 
   useEffect(() => {
     if (savedDeliveryAddress && !selectedAddressId) {
@@ -467,7 +513,12 @@ const Checkout = () => {
   // ─── Success Screen ───────────────────────────────────────────────────────
   if (isSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 animate-in zoom-in duration-500">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, type: "spring" }}
+        className="flex flex-col items-center justify-center min-h-[60vh] px-4"
+      >
         <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 text-green-500 shadow-lg shadow-green-200">
           <CheckCircle className="w-12 h-12" />
         </div>
@@ -501,7 +552,7 @@ const Checkout = () => {
             Continue shopping
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -519,9 +570,15 @@ const Checkout = () => {
         </div>
       )}
 
-      <form onSubmit={handlePlaceOrder} className="space-y-5">
+      <motion.form 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        onSubmit={handlePlaceOrder} 
+        className="space-y-5"
+      >
         {/* ── 1. Item details review ───────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-primary" /> Item details
           </h2>
@@ -590,10 +647,10 @@ const Checkout = () => {
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
         {/* ── 2. Delivery address ──────────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-primary" /> Delivery address
@@ -695,10 +752,10 @@ const Checkout = () => {
               className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
-        </div>
+        </motion.div>
 
         {/* ── 3. Delivery method ───────────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
             <Truck className="w-5 h-5 text-primary" /> Delivery method
           </h2>
@@ -763,10 +820,10 @@ const Checkout = () => {
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* ── 4. Coupons ───────────────────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
             <Ticket className="w-5 h-5 text-primary" /> Coupons & offers
           </h2>
@@ -804,10 +861,10 @@ const Checkout = () => {
               {couponError && <p className="text-red-500 text-xs mt-2 font-medium">{couponError}</p>}
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* ── 5. Payment method ────────────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-primary" /> Payment method
           </h2>
@@ -887,10 +944,10 @@ const Checkout = () => {
               Online payment is simulated in this build (order marked paid). Wire Razorpay/Stripe keys for live capture.
             </p>
           )}
-        </div>
+        </motion.div>
 
         {/* ── 6. Special instructions ──────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-primary" /> Special instructions
           </h2>
@@ -919,10 +976,10 @@ const Checkout = () => {
             maxLength={500}
           />
           <p className="text-[10px] text-gray-400 mt-1 text-right">{specialInstructions.length}/500</p>
-        </div>
+        </motion.div>
 
         {/* ── 7. Price breakup ─────────────────────────────── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <motion.div variants={itemVariants} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
           <h2 className="text-base font-bold text-gray-900 mb-3">Price breakup</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-gray-600">
@@ -972,11 +1029,14 @@ const Checkout = () => {
               <span>₹{total.toFixed(0)}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Place order */}
-        <button
+        <motion.button
+          variants={itemVariants}
           type="submit"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           disabled={isLoading}
           className="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary-hover transition-all shadow-lg text-lg flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed sticky bottom-4"
         >
@@ -988,18 +1048,18 @@ const Checkout = () => {
           ) : (
             <>Place order · ₹{total.toFixed(0)}</>
           )}
-        </button>
+        </motion.button>
 
         {!user && (
-          <p className="text-center text-sm text-amber-600 font-medium">
+          <motion.p variants={itemVariants} className="text-center text-sm text-amber-600 font-medium">
             ⚠️ You must be{' '}
             <button type="button" onClick={() => navigate('/login')} className="underline">
               logged in
             </button>{' '}
             to place an order.
-          </p>
+          </motion.p>
         )}
-      </form>
+      </motion.form>
     </div>
   );
 };
