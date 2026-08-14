@@ -144,17 +144,12 @@ const PromoBannerSlider = () => {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        // Fetch both global admin banners and active vendor banners
-        const [configRes, vendorBannersRes] = await Promise.all([
-          api.get('/config').catch(() => ({ data: { banners: [] } })),
-          api.get('/banners/active').catch(() => ({ data: [] }))
-        ]);
+        // Fetch only active vendor banners
+        const vendorBannersRes = await api.get('/banners/active').catch(() => ({ data: [] }));
         
-        const adminBanners = Array.isArray(configRes.data?.banners) ? configRes.data.banners : [];
         const vendorBanners = Array.isArray(vendorBannersRes.data) ? vendorBannersRes.data : [];
         
-        // Combine them (admin banners first)
-        setBanners([...adminBanners, ...vendorBanners]);
+        setBanners(vendorBanners);
       } catch (error) {
         console.error('Failed to fetch banners', error);
         setBanners([]);
