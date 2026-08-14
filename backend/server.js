@@ -181,9 +181,9 @@ io.on('connection', (socket) => {
         if (user) {
           const shop = await require('./models/Shop').findById(senderId);
           await sendPushNotification(user, {
-            title: \`New message from \${shop ? shop.shopName : 'Shop'}\`,
+            title: `New message from ${shop ? shop.shopName : 'Shop'}`,
             body: text,
-            url: \`/shop/\${shopId}\`
+            url: `/shop/${shopId}`
           });
         }
       } else if (senderModel === 'User' && shopId) {
@@ -192,9 +192,9 @@ io.on('connection', (socket) => {
         if (shop && shop.userId) {
           const user = await User.findById(senderId);
           await sendPushNotification(shop.userId, {
-            title: \`New message from \${user ? user.name : 'Customer'}\`,
+            title: `New message from ${user ? user.name : 'Customer'}`,
             body: text,
-            url: \`/vendor/support\`
+            url: `/vendor/support`
           });
         }
       }
