@@ -1,4 +1,4 @@
-package com.example.online_shop;
+package com.mersko.app;
 
 import com.getcapacitor.BridgeActivity;
 

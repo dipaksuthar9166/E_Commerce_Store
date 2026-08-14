@@ -212,14 +212,27 @@ const Cart = () => {
               </div>
             </div>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              animate={
+                selectedItems.length > 0
+                  ? {
+                      boxShadow: [
+                        '0px 4px 14px rgba(37, 99, 235, 0.3)',
+                        '0px 4px 20px rgba(37, 99, 235, 0.5)',
+                        '0px 4px 14px rgba(37, 99, 235, 0.3)'
+                      ]
+                    }
+                  : {}
+              }
+              transition={{ repeat: Infinity, duration: 2 }}
               type="button"
               onClick={handleCheckout}
               disabled={selectedItems.length === 0}
-              className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
+              className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:shadow-none"
             >
               Proceed to checkout ({getCartCount()}) <ArrowRight className="w-4 h-4" />
-            </button>
+            </motion.button>
             <Link
               to="/"
               className="block text-center text-sm text-slate-500 hover:text-blue-600 mt-3 font-medium"

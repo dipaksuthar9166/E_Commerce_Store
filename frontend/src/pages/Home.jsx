@@ -15,6 +15,8 @@ import ProductCard from '../components/ProductCard';
 import usePublicCategories from '../hooks/usePublicCategories';
 import api from '../api/axios';
 import { getProductImage } from '../utils/productImage';
+import FlashSaleCountdown from '../components/FlashSaleCountdown';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const TRUST = [
   { icon: Truck, title: 'Fast delivery', desc: 'Same-day in your area' },
@@ -24,6 +26,7 @@ const TRUST = [
 ];
 
 const Home = () => {
+  const { t } = useLanguage();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { homeChips, loading: catsLoading } = usePublicCategories();
@@ -91,22 +94,32 @@ const Home = () => {
             Categories appear here when sellers add products under a category (Vendor → Categories → My Products).
           </div>
         ) : (
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide px-1 pb-1">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="flex gap-3 overflow-x-auto scrollbar-hide px-1 pb-1"
+          >
             {homeChips.map((cat) => (
-              <Link
-                key={cat.key}
-                to={cat.path}
-                className="flex-shrink-0 group flex flex-col items-center gap-1.5 w-[72px] sm:w-[84px]"
-              >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 flex items-center justify-center text-2xl group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors">
-                  <span>{cat.emoji}</span>
-                </div>
-                <span className="text-[11px] sm:text-xs font-semibold text-slate-700 text-center leading-tight group-hover:text-blue-600">
-                  {cat.label}
-                </span>
-              </Link>
+              <motion.div key={cat.key} variants={sectionVariants} className="flex-shrink-0">
+                <Link
+                  to={cat.path}
+                  className="group flex flex-col items-center gap-1.5 w-[72px] sm:w-[84px]"
+                >
+                  <motion.div 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 flex items-center justify-center text-2xl group-hover:bg-blue-50 group-hover:border-blue-100 transition-colors shadow-sm"
+                  >
+                    <span>{cat.emoji}</span>
+                  </motion.div>
+                  <span className="text-[11px] sm:text-xs font-semibold text-slate-700 text-center leading-tight group-hover:text-blue-600">
+                    {cat.label}
+                  </span>
+                </Link>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </section>
 
@@ -116,22 +129,33 @@ const Home = () => {
       </section>
 
       {/* Trust strip */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <motion.section 
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-50px" }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3"
+      >
         {TRUST.map(({ icon: Icon, title, desc }) => (
-          <div
+          <motion.div
+            variants={sectionVariants}
             key={title}
-            className="card-surface flex items-center gap-3 p-3.5 sm:p-4"
+            className="card-surface flex items-center gap-3 p-3.5 sm:p-4 hover:shadow-md transition-shadow"
           >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+            <motion.div 
+              whileHover={{ rotate: [0, -10, 10, 0] }}
+              transition={{ duration: 0.5 }}
+              className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
+            >
               <Icon className="w-5 h-5" />
-            </div>
+            </motion.div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-900 truncate">{title}</p>
               <p className="text-[11px] text-slate-500 truncate">{desc}</p>
             </div>
-          </div>
+          </motion.div>
         ))}
-      </section>
+      </motion.section>
 
       {/* Deals strip — products only (neutral, not rainbow) */}
       {!loading && products.length > 0 && (
@@ -139,58 +163,95 @@ const Home = () => {
           variants={sectionVariants} 
           initial="hidden" 
           animate="visible"
-          className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-sm"
+          className="rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-red-600 p-1 shadow-lg overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-slate-900 font-bold text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              Today&apos;s Picks
-            </h2>
-            <Link to="/products" className="text-blue-600 text-sm font-medium hover:text-blue-700">
-              See more →
-            </Link>
-          </div>
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="grid grid-cols-2 md:grid-cols-4 gap-3"
-          >
-            {showDeals.slice(0, 4).map((product) => {
-              const discount = product.discount_percent || product.discount || 0;
-              const original = Number(product.price) || 0;
-              const price = discount > 0 ? Math.round(original * (1 - discount / 100)) : original;
+          <div className="bg-white rounded-xl p-4 sm:p-5 relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 -mt-10 -mr-10 opacity-5">
+              <Zap className="w-40 h-40" />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-100 text-red-600 p-2 rounded-lg">
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+                </div>
+                <div>
+                  <h2 className="text-slate-900 font-extrabold text-xl sm:text-2xl tracking-tight">
+                    {t('home.flashSale')}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium">{t('home.flashSaleDesc')}</p>
+                </div>
+              </div>
               
-              return (
-              <motion.div key={product._id} variants={sectionVariants}>
-                <Link
-                  to={`/product/${product._id}`}
-                  className="block bg-slate-50 border border-slate-100 rounded-xl p-2.5 hover:border-slate-200 hover:bg-white transition-colors h-full"
-                >
-                <div className="aspect-square rounded-lg bg-slate-50 flex items-center justify-center p-2 mb-2 overflow-hidden">
-                  <img
-                    src={getProductImage(product)}
-                    alt={product.name}
-                    className="w-full h-full object-contain"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </div>
-                <p className="text-xs font-semibold text-slate-800 line-clamp-1">{product.name}</p>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  <p className="text-sm font-bold text-slate-900">
-                    ₹{price.toLocaleString('en-IN')}
-                  </p>
-                  {discount > 0 && (
-                    <p className="text-[10px] text-slate-400 line-through">
-                      ₹{original.toLocaleString('en-IN')}
+              <FlashSaleCountdown />
+            </div>
+
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 relative z-10"
+            >
+              {showDeals.slice(0, 4).map((product, idx) => {
+                const discount = product.discount_percent || product.discount || 0;
+                const original = Number(product.price) || 0;
+                const price = discount > 0 ? Math.round(original * (1 - discount / 100)) : original;
+                
+                // Mock sold percentage for UI
+                const soldPercentage = 40 + (idx * 15);
+                
+                return (
+                <motion.div key={product._id} variants={sectionVariants}>
+                  <Link
+                    to={`/product/${product._id}`}
+                    className="block group relative bg-white border border-slate-100 rounded-xl p-2.5 sm:p-3 hover:border-red-200 hover:shadow-md transition-all h-full"
+                  >
+                    {discount > 0 && (
+                      <div className="absolute top-2 left-2 z-10 bg-red-600 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        {discount}% OFF
+                      </div>
+                    )}
+                  <div className="aspect-square rounded-lg bg-slate-50 flex items-center justify-center p-3 mb-3 overflow-hidden group-hover:bg-slate-100 transition-colors">
+                    <img
+                      src={getProductImage(product)}
+                      alt={product.name}
+                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-800 line-clamp-2 mb-2 group-hover:text-red-600 transition-colors">{product.name}</p>
+                  
+                  <div className="flex items-baseline gap-1.5 mb-3">
+                    <p className="text-sm sm:text-base font-extrabold text-slate-900">
+                      ₹{price.toLocaleString('en-IN')}
                     </p>
-                  )}
-                </div>
-                </Link>
-              </motion.div>
-            )})}
-          </motion.div>
+                    {discount > 0 && (
+                      <p className="text-[10px] sm:text-xs text-slate-400 line-through font-medium">
+                        ₹{original.toLocaleString('en-IN')}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Stock Progress Bar */}
+                  <div className="mt-auto">
+                    <div className="flex justify-between text-[9px] sm:text-[10px] font-bold text-slate-500 mb-1">
+                      <span>{soldPercentage}% Sold</span>
+                      <span className="text-red-600">Almost Gone!</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-400 to-red-500 rounded-full" 
+                        style={{ width: `${soldPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                  </Link>
+                </motion.div>
+              )})}
+            </motion.div>
+          </div>
         </motion.section>
       )}
 

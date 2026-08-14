@@ -1,15 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Search, Clock, CheckCircle, Truck, Package, XCircle } from 'lucide-react';
+import {
+  ShoppingBag,
+  Clock,
+  CheckCircle,
+  Truck,
+  Package,
+  XCircle,
+  RefreshCw,
+} from 'lucide-react';
 import api from '../../api/axios';
+import {
+  PageShell,
+  PageHeader,
+  RefreshButton,
+  StatCard,
+  SurfaceCard,
+  CardHeader,
+  SearchField,
+  SelectField,
+  SoftBadge,
+  DataTable,
+  TableHead,
+  Th,
+  TableBody,
+  Tr,
+  TableEmpty,
+  TableSkeleton,
+  TableFooter,
+  tdClass,
+} from '../../components/ui/PageUI';
 
-const STATUS_STYLES = {
-  pending: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'Pending' },
-  accepted: { bg: 'bg-blue-100', text: 'text-blue-700', icon: CheckCircle, label: 'Accepted' },
-  packing: { bg: 'bg-indigo-100', text: 'text-indigo-700', icon: Package, label: 'Packing' },
-  ready_for_pickup: { bg: 'bg-purple-100', text: 'text-purple-700', icon: Package, label: 'Ready' },
-  out_for_delivery: { bg: 'bg-orange-100', text: 'text-orange-700', icon: Truck, label: 'Out for Delivery' },
-  delivered: { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle, label: 'Delivered' },
-  cancelled: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle, label: 'Cancelled' },
+const STATUS_META = {
+  pending: { color: 'amber', icon: Clock, label: 'Pending' },
+  accepted: { color: 'blue', icon: CheckCircle, label: 'Accepted' },
+  packing: { color: 'indigo', icon: Package, label: 'Packing' },
+  ready_for_pickup: { color: 'violet', icon: Package, label: 'Ready' },
+  out_for_delivery: { color: 'orange', icon: Truck, label: 'Out for Delivery' },
+  delivered: { color: 'emerald', icon: CheckCircle, label: 'Delivered' },
+  cancelled: { color: 'rose', icon: XCircle, label: 'Cancelled' },
 };
 
 const AdminOrders = () => {
@@ -18,126 +46,193 @@ const AdminOrders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/admin/orders');
+      setOrders(data);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const { data } = await api.get('/admin/orders');
-        setOrders(data);
-      } catch (err) {
-        console.error('Failed to fetch orders:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchOrders();
   }, []);
 
   const filteredOrders = orders.filter((order) => {
-    const matchesSearch = 
-      order._id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch =
+      order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.userId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.shopId?.shopName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
+  const countBy = (status) => orders.filter((o) => o.status === status).length;
+
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <ShoppingBag className="text-blue-600" /> Global Order Monitor
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">Track and monitor all orders across the platform</p>
+    <PageShell>
+      <PageHeader
+        title="Global Order Monitor"
+        subtitle="Track and monitor all orders across the platform"
+        actions={<RefreshButton onClick={fetchOrders} loading={loading} />}
+      />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Orders"
+          value={loading ? '—' : orders.length}
+          subtitle="All statuses"
+          icon={ShoppingBag}
+          iconColor="bg-indigo-50 text-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-400"
+          bar="from-pink-400 via-fuchsia-400 to-violet-500"
+          delay={0}
+        />
+        <StatCard
+          title="Pending"
+          value={loading ? '—' : countBy('pending')}
+          subtitle="Awaiting action"
+          icon={Clock}
+          iconColor="bg-amber-50 text-amber-500 dark:bg-amber-500/15 dark:text-amber-400"
+          bar="from-amber-400 via-orange-400 to-rose-400"
+          delay={0.05}
+        />
+        <StatCard
+          title="In Transit"
+          value={loading ? '—' : countBy('out_for_delivery')}
+          subtitle="Out for delivery"
+          icon={Truck}
+          iconColor="bg-orange-50 text-orange-500 dark:bg-orange-500/15 dark:text-orange-400"
+          bar="from-orange-400 via-amber-400 to-yellow-400"
+          delay={0.1}
+        />
+        <StatCard
+          title="Delivered"
+          value={loading ? '—' : countBy('delivered')}
+          subtitle="Completed orders"
+          icon={CheckCircle}
+          iconColor="bg-emerald-50 text-emerald-500 dark:bg-emerald-500/15 dark:text-emerald-400"
+          bar="from-emerald-400 via-teal-400 to-cyan-500"
+          delay={0.15}
+        />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Toolbar */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="relative w-full md:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Search by Order ID, Customer, or Shop..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
-            />
-          </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
-            >
-              <option value="all">All Statuses</option>
-              {Object.keys(STATUS_STYLES).map(status => (
-                <option key={status} value={status}>{STATUS_STYLES[status].label}</option>
-              ))}
-            </select>
-          </div>
+      <SurfaceCard delay={0.12}>
+        <div className="flex flex-col md:flex-row gap-4 md:items-end">
+          <SearchField
+            label="Search Orders"
+            className="flex-1"
+            placeholder="Search by Order ID, Customer, or Shop..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <SelectField
+            label="Status"
+            className="w-full md:w-48"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            {Object.keys(STATUS_META).map((status) => (
+              <option key={status} value={status}>
+                {STATUS_META[status].label}
+              </option>
+            ))}
+          </SelectField>
         </div>
+      </SurfaceCard>
 
-        {/* Orders Table */}
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="p-12 text-center text-gray-500">Loading orders...</div>
-          ) : filteredOrders.length === 0 ? (
-            <div className="p-12 text-center">
-              <ShoppingBag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No orders found</p>
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50/80 text-gray-700 font-semibold border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4">Order ID / Date</th>
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Shop</th>
-                  <th className="px-6 py-4">Total Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Delivery Partner</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredOrders.map(order => {
-                  const style = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
-                  const Icon = style.icon;
-                  return (
-                    <tr key={order._id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900 truncate max-w-[120px]">#{order._id.slice(-8)}</div>
-                        <div className="text-[11px] text-gray-500">{new Date(order.createdAt).toLocaleString()}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{order.userId?.name || 'Unknown'}</div>
-                        <div className="text-[11px] text-gray-500">{order.userId?.email || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 font-medium text-blue-600">
-                        {order.shopId?.shopName || 'Unknown Shop'}
-                      </td>
-                      <td className="px-6 py-4 font-bold text-gray-900">
-                        ₹{order.totalAmount?.toLocaleString('en-IN')}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${style.bg} ${style.text}`}>
-                          <Icon size={12} />
-                          {style.label}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-500 text-xs">
-                        {order.deliveryBoyId ? order.deliveryBoyId.name : <span className="italic text-gray-400">Unassigned</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
+      <SurfaceCard padding={false} delay={0.18}>
+        <CardHeader
+          title="Orders Directory"
+          subtitle={`${filteredOrders.length} result${filteredOrders.length !== 1 ? 's' : ''}`}
+        />
 
+        <DataTable minWidth="900px">
+          <TableHead>
+            {['Order ID / Date', 'Customer', 'Shop', 'Total Amount', 'Status', 'Delivery Partner'].map(
+              (h) => (
+                <Th key={h}>{h}</Th>
+              )
+            )}
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableSkeleton rows={6} colSpan={6} />
+            ) : filteredOrders.length === 0 ? (
+              <TableEmpty
+                icon={ShoppingBag}
+                title="No orders found"
+                subtitle="Try a different search or status filter."
+                colSpan={6}
+              />
+            ) : (
+              filteredOrders.map((order) => {
+                const meta = STATUS_META[order.status] || STATUS_META.pending;
+                const Icon = meta.icon;
+                return (
+                  <Tr key={order._id}>
+                    <td className={tdClass}>
+                      <div className="font-semibold text-slate-900 dark:text-white truncate max-w-[120px]">
+                        #{order._id.slice(-8)}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {new Date(order.createdAt).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className={tdClass}>
+                      <div className="font-medium text-slate-800 dark:text-slate-100">
+                        {order.userId?.name || 'Unknown'}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {order.userId?.email || 'N/A'}
+                      </div>
+                    </td>
+                    <td className={`${tdClass} font-medium text-indigo-600 dark:text-indigo-400`}>
+                      {order.shopId?.shopName || 'Unknown Shop'}
+                    </td>
+                    <td className={`${tdClass} font-bold text-slate-900 dark:text-white`}>
+                      ₹{order.totalAmount?.toLocaleString('en-IN')}
+                    </td>
+                    <td className={tdClass}>
+                      <SoftBadge color={meta.color}>
+                        <Icon size={12} />
+                        {meta.label}
+                      </SoftBadge>
+                    </td>
+                    <td className={`${tdClass} text-slate-500 dark:text-slate-400 text-xs`}>
+                      {order.deliveryBoyId ? (
+                        order.deliveryBoyId.name
+                      ) : (
+                        <span className="italic text-slate-400 dark:text-slate-500">Unassigned</span>
+                      )}
+                    </td>
+                  </Tr>
+                );
+              })
+            )}
+          </TableBody>
+        </DataTable>
+
+        {!loading && filteredOrders.length > 0 && (
+          <TableFooter>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Showing{' '}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {filteredOrders.length}
+              </span>{' '}
+              of{' '}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{orders.length}</span>{' '}
+              orders
+            </p>
+          </TableFooter>
+        )}
+      </SurfaceCard>
+    </PageShell>
   );
 };
 

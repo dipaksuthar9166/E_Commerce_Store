@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   CheckCircle,
   XCircle,
-  Clock,
   Truck,
   Box,
   ShoppingBag,
@@ -12,6 +11,15 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useSocket } from '../../contexts/SocketContext';
+import {
+  PageShell,
+  PageHeader,
+  RefreshButton,
+  StatCard,
+  SurfaceCard,
+  SoftBadge,
+  EmptyState,
+} from '../../components/ui/PageUI';
 
 const TABS = [
   { key: 'pending', label: 'New Orders', icon: AlertCircle },
@@ -23,46 +31,55 @@ const TABS = [
 ];
 
 const statusConfig = {
-  pending: { label: 'Pending', cls: 'bg-red-50 text-red-700 border-red-100', dot: 'bg-red-400', nextStatus: 'accepted' },
-  accepted: { label: 'Accepted', cls: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-400', nextStatus: 'packing' },
-  packing: { label: 'Packing', cls: 'bg-purple-50 text-purple-700 border-purple-100', dot: 'bg-purple-400', nextStatus: 'ready_for_pickup' },
-  ready_for_pickup: { label: 'Ready for Pickup', cls: 'bg-indigo-50 text-indigo-700 border-indigo-100', dot: 'bg-indigo-400', nextStatus: 'delivered' },
-  delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-700 border-green-100', dot: 'bg-green-400' },
-  cancelled: { label: 'Cancelled', cls: 'bg-gray-50 text-gray-700 border-gray-100', dot: 'bg-gray-400' },
-  return_requested: { label: 'Return Requested', cls: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-400' },
-  returned: { label: 'Returned', cls: 'bg-gray-100 text-gray-800 border-gray-200', dot: 'bg-gray-500' },
+  pending: { label: 'Pending', color: 'rose', nextStatus: 'accepted' },
+  accepted: { label: 'Accepted', color: 'blue', nextStatus: 'packing' },
+  packing: { label: 'Packing', color: 'violet', nextStatus: 'ready_for_pickup' },
+  ready_for_pickup: { label: 'Ready for Pickup', color: 'indigo', nextStatus: 'delivered' },
+  delivered: { label: 'Delivered', color: 'emerald' },
+  cancelled: { label: 'Cancelled', color: 'slate' },
+  return_requested: { label: 'Return Requested', color: 'orange' },
+  returned: { label: 'Returned', color: 'slate' },
 };
 
 const StatusBadge = ({ status }) => {
   const cfg = statusConfig[status] || statusConfig.pending;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold border ${cfg.cls}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+    <SoftBadge color={cfg.color}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
       {cfg.label}
-    </span>
+    </SoftBadge>
   );
 };
 
 const OrderCard = ({ order, onStatusChange, onReturnAction }) => (
-  <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-    <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-gray-50">
+  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-[0_1px_3px_rgb(15_23_42/0.04)] dark:shadow-black/30 hover:shadow-md transition-shadow overflow-hidden">
+    <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-slate-50 dark:border-slate-800">
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-mono text-gray-400">#{order._id?.slice(-6) || 'N/A'}</span>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
+            #{order._id?.slice(-6) || 'N/A'}
+          </span>
           <StatusBadge status={order.status} />
         </div>
-        <p className="font-semibold text-gray-900">{order.userId?.name || 'Customer'}</p>
-        <p className="text-gray-400 text-xs">{order.userId?.email || 'N/A'}</p>
+        <p className="font-semibold text-slate-900 dark:text-white">
+          {order.userId?.name || 'Customer'}
+        </p>
+        <p className="text-slate-400 dark:text-slate-500 text-xs">
+          {order.userId?.email || 'N/A'}
+        </p>
       </div>
       <div className="text-right">
-        <p className="text-xs text-gray-400">
-          {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          {new Date(order.createdAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
         </p>
-        <p className="font-bold text-gray-900 text-lg">₹{order.totalAmount}</p>
+        <p className="font-bold text-slate-900 dark:text-white text-lg">₹{order.totalAmount}</p>
       </div>
     </div>
 
-    <div className="px-5 py-3 bg-gray-50/50 space-y-1.5">
+    <div className="px-5 py-3 bg-slate-50/60 dark:bg-slate-800/40 space-y-1.5">
       {order.items?.map((item, i) => {
         const name =
           item.productId?.name ||
@@ -70,29 +87,33 @@ const OrderCard = ({ order, onStatusChange, onReturnAction }) => (
           (typeof item.productId === 'string' ? `Item ·${item.productId.slice(-4)}` : 'Item');
         return (
           <div key={i} className="flex justify-between text-sm gap-2">
-            <span className="text-gray-700 flex items-center gap-1.5 min-w-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+            <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5 min-w-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0" />
               <span className="truncate">{name}</span>
-              <span className="text-gray-400 text-xs shrink-0">×{item.quantity}</span>
+              <span className="text-slate-400 text-xs shrink-0">×{item.quantity}</span>
             </span>
-            <span className="text-gray-600 font-medium shrink-0">₹{item.price}</span>
+            <span className="text-slate-600 dark:text-slate-400 font-medium shrink-0">
+              ₹{item.price}
+            </span>
           </div>
         );
       })}
     </div>
 
-    <div className="flex gap-2 px-5 py-3 border-t border-gray-50 flex-wrap">
+    <div className="flex gap-2 px-5 py-3 border-t border-slate-50 dark:border-slate-800 flex-wrap">
       {order.status === 'pending' && (
         <>
           <button
+            type="button"
             onClick={() => onStatusChange(order._id, 'cancelled')}
-            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-50 text-red-600 font-semibold text-xs border border-red-100 hover:bg-red-100 transition-colors"
+            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold text-xs border border-rose-100 dark:border-rose-800/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
           >
             <XCircle size={13} /> Reject
           </button>
           <button
+            type="button"
             onClick={() => onStatusChange(order._id, 'accepted')}
-            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-500 text-white font-semibold text-xs hover:bg-blue-600 transition-colors shadow-sm"
+            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-500 transition-colors shadow-sm shadow-indigo-500/25"
           >
             <CheckCircle size={13} /> Accept
           </button>
@@ -101,47 +122,62 @@ const OrderCard = ({ order, onStatusChange, onReturnAction }) => (
 
       {order.status === 'accepted' && (
         <button
+          type="button"
           onClick={() => onStatusChange(order._id, 'packing')}
-          className="w-full py-2 rounded-lg bg-purple-500 text-white font-semibold text-xs hover:bg-purple-600 transition-colors shadow-sm"
-        >Mark as Packing</button>
+          className="w-full py-2 rounded-xl bg-violet-500 text-white font-semibold text-xs hover:bg-violet-600 transition-colors shadow-sm"
+        >
+          Mark as Packing
+        </button>
       )}
 
       {order.status === 'packing' && (
         <button
+          type="button"
           onClick={() => onStatusChange(order._id, 'ready_for_pickup')}
-          className="w-full py-2 rounded-lg bg-indigo-500 text-white font-semibold text-xs hover:bg-indigo-600 transition-colors shadow-sm"
-        >Ready for Pickup</button>
+          className="w-full py-2 rounded-xl bg-indigo-500 text-white font-semibold text-xs hover:bg-indigo-600 transition-colors shadow-sm"
+        >
+          Ready for Pickup
+        </button>
       )}
 
       {order.status === 'ready_for_pickup' && (
         <button
+          type="button"
           onClick={() => onStatusChange(order._id, 'delivered')}
-          className="w-full py-2 rounded-lg bg-green-500 text-white font-semibold text-xs hover:bg-green-600 transition-colors shadow-sm"
-        >Mark as Delivered</button>
+          className="w-full py-2 rounded-xl bg-emerald-500 text-white font-semibold text-xs hover:bg-emerald-600 transition-colors shadow-sm"
+        >
+          Mark as Delivered
+        </button>
       )}
-      
+
       {order.status === 'return_requested' && (
         <>
           <button
+            type="button"
             onClick={() => onReturnAction(order._id, 'reject')}
-            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-50 text-red-600 font-semibold text-xs border border-red-100 hover:bg-red-100 transition-colors"
+            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold text-xs border border-rose-100 dark:border-rose-800/50 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors"
           >
             <XCircle size={13} /> Reject Return
           </button>
           <button
+            type="button"
             onClick={() => onReturnAction(order._id, 'approve')}
-            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-500 text-white font-semibold text-xs hover:bg-green-600 transition-colors shadow-sm"
+            className="flex-1 min-w-[80px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500 text-white font-semibold text-xs hover:bg-emerald-600 transition-colors shadow-sm"
           >
             <CheckCircle size={13} /> Approve Return
           </button>
         </>
       )}
 
-      {order.status !== 'pending' && !['packing', 'ready_for_pickup', 'accepted', 'return_requested'].includes(order.status) && (
-        <button className="text-xs text-gray-400 hover:text-blue-600 font-medium flex items-center gap-0.5 transition-colors w-full justify-center">
-          View details <ChevronRight size={13} />
-        </button>
-      )}
+      {order.status !== 'pending' &&
+        !['packing', 'ready_for_pickup', 'accepted', 'return_requested'].includes(order.status) && (
+          <button
+            type="button"
+            className="text-xs text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium flex items-center gap-0.5 transition-colors w-full justify-center"
+          >
+            View details <ChevronRight size={13} />
+          </button>
+        )}
     </div>
   </div>
 );
@@ -151,6 +187,18 @@ const VendorOrders = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [loading, setLoading] = useState(true);
   const { socket } = useSocket();
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/vendor/orders');
+      setOrders(data.orders || []);
+    } catch (error) {
+      console.error('Error fetching orders', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -176,23 +224,12 @@ const VendorOrders = () => {
     };
   }, [socket]);
 
-  const fetchOrders = async () => {
-    try {
-      const { data } = await api.get('/vendor/orders');
-      setOrders(data.orders || []);
-    } catch (error) {
-      console.error('Error fetching orders', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const updateOrderStatus = async (id, status) => {
     try {
       await api.put(`/vendor/orders/${id}/status`, { status });
       setOrders((prev) => prev.map((o) => (o._id === id ? { ...o, status } : o)));
     } catch (error) {
-      console.error(`Failed to update order status`, error);
+      console.error('Failed to update order status', error);
       alert('Failed to update order status');
     }
   };
@@ -204,9 +241,10 @@ const VendorOrders = () => {
       if (updated) {
         setOrders((prev) => prev.map((o) => (o._id === orderId ? updated : o)));
       } else {
-        // Fallback optimistic update
         const nextStatus = action === 'approve' ? 'returned' : 'delivered';
-        setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: nextStatus } : o)));
+        setOrders((prev) =>
+          prev.map((o) => (o._id === orderId ? { ...o, status: nextStatus } : o))
+        );
       }
     } catch (error) {
       console.error('Failed to process return action', error);
@@ -220,75 +258,139 @@ const VendorOrders = () => {
     }
     return o.status === activeTab;
   });
-  
-  const counts = { pending: 0, accepted: 0, packing: 0, ready_for_pickup: 0, delivered: 0, returns: 0, cancelled: 0 };
+
+  const counts = {
+    pending: 0,
+    accepted: 0,
+    packing: 0,
+    ready_for_pickup: 0,
+    delivered: 0,
+    returns: 0,
+    cancelled: 0,
+  };
   orders.forEach((o) => {
     if (o.status) {
       if (['return_requested', 'returned'].includes(o.status)) {
         counts.returns++;
-      } else if (counts.hasOwnProperty(o.status)) {
+      } else if (Object.prototype.hasOwnProperty.call(counts, o.status)) {
         counts[o.status]++;
       }
     }
   });
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Manage and track all your incoming orders with real-time status updates</p>
+    <PageShell>
+      <PageHeader
+        title="Order Management"
+        subtitle="Manage and track all your incoming orders with real-time status updates"
+        actions={<RefreshButton onClick={fetchOrders} loading={loading} />}
+      />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="New Orders"
+          value={loading ? '—' : counts.pending}
+          subtitle="Awaiting accept"
+          icon={AlertCircle}
+          iconColor="bg-rose-50 text-rose-500 dark:bg-rose-500/15 dark:text-rose-400"
+          bar="from-rose-400 via-orange-400 to-amber-400"
+        />
+        <StatCard
+          title="In Progress"
+          value={
+            loading ? '—' : counts.accepted + counts.packing + counts.ready_for_pickup
+          }
+          subtitle="Accepted · packing · ready"
+          icon={Box}
+          iconColor="bg-indigo-50 text-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-400"
+          bar="from-indigo-400 via-violet-400 to-fuchsia-500"
+          delay={0.05}
+        />
+        <StatCard
+          title="Delivered"
+          value={loading ? '—' : counts.delivered}
+          subtitle="Completed"
+          icon={CheckCircle}
+          iconColor="bg-emerald-50 text-emerald-500 dark:bg-emerald-500/15 dark:text-emerald-400"
+          bar="from-emerald-400 via-teal-400 to-cyan-500"
+          delay={0.1}
+        />
+        <StatCard
+          title="Returns"
+          value={loading ? '—' : counts.returns}
+          subtitle="Requests & completed"
+          icon={ArchiveRestore}
+          iconColor="bg-orange-50 text-orange-500 dark:bg-orange-500/15 dark:text-orange-400"
+          bar="from-orange-400 via-amber-400 to-yellow-400"
+          delay={0.15}
+        />
       </div>
 
-      <div className="flex gap-2 p-1 bg-gray-100 rounded-xl w-full overflow-x-auto">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === key
-                ? 'bg-white shadow-sm text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Icon size={14} />
-            {label}
-            {counts[key] > 0 && (
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                  activeTab === key ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-500'
-                }`}
-              >
-                {counts[key]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <SurfaceCard delay={0.1}>
+        <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full overflow-x-auto">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === key
+                  ? 'bg-white dark:bg-slate-900 shadow-sm text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Icon size={14} />
+              {label}
+              {counts[key] > 0 && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    activeTab === key
+                      ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  {counts[key]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </SurfaceCard>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2].map((i) => (
-            <div key={i} className="animate-pulse bg-white rounded-xl p-5 border border-gray-100 h-40" />
+            <div
+              key={i}
+              className="animate-pulse bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-100 dark:border-slate-800 h-40"
+            />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
-          <ShoppingBag size={40} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-500 font-semibold">No {TABS.find(t => t.key === activeTab)?.label || activeTab} orders</p>
-          <p className="text-gray-400 text-xs mt-1">
-            {activeTab === 'pending'
-              ? 'New orders will appear here instantly with notifications.'
-              : `All ${activeTab} orders will appear here.`}
-          </p>
-        </div>
+        <SurfaceCard>
+          <EmptyState
+            icon={ShoppingBag}
+            title={`No ${TABS.find((t) => t.key === activeTab)?.label || activeTab} orders`}
+            subtitle={
+              activeTab === 'pending'
+                ? 'New orders will appear here instantly with notifications.'
+                : `All ${activeTab.replace(/_/g, ' ')} orders will appear here.`
+            }
+          />
+        </SurfaceCard>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((order) => (
-            <OrderCard key={order._id} order={order} onStatusChange={updateOrderStatus} onReturnAction={handleReturnAction} />
+            <OrderCard
+              key={order._id}
+              order={order}
+              onStatusChange={updateOrderStatus}
+              onReturnAction={handleReturnAction}
+            />
           ))}
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };
 

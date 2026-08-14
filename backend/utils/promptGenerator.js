@@ -20,4 +20,21 @@ prompt += `. The item is centered in the frame against a clean, isolated, neutra
   return prompt;
 }
 
-module.exports = { generateProductPrompt };
+/**
+ * Generates a dynamic, detailed prompt for an AI image generation service for a banner.
+ * @param {string} productName The name of the product.
+ * @param {number} discountPercent The discount percentage for the product.
+ * @param {string} category The category of the product.
+ * @returns {string} A detailed prompt for generating a high-quality promotional banner.
+ */
+function generateBannerPrompt(productName, discountPercent, category) {
+  const template = "A high-end e-commerce promotional banner featuring {product_name}, placed dynamically on a sleek dark-themed studio background tailored for {category}. The product is rendered in stunning 3D with dramatic ambient rim lighting, dynamic neon edge glows, and soft particle glare effects. Bold aesthetic typography on the left with text '{discount_percent}% OFF', a glowing vibrant 'SHOP NOW' CTA button with smooth glassmorphism UI overlay. Premium commercial product photography style, ultra-detailed, 8K resolution --ar 16:5";
+
+  return template
+    .replace('{product_name}', productName)
+    .replace('{discount_percent}', discountPercent)
+    .replace('{category}', category || 'products');
+}
+
+
+module.exports = { generateProductPrompt, generateBannerPrompt };

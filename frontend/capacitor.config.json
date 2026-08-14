@@ -1,5 +1,14 @@
 {
-  "appId": "com.example.online_shop",
-  "appName": "online_shop",
-  "webDir": "dist"
+  "appId": "com.mersko.app",
+  "appName": "MERSKO",
+  "webDir": "dist",
+  "server": {
+    "url": "https://e-commerce-store-kto6.onrender.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
 }

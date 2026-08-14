@@ -51,6 +51,35 @@ exports.getAdminDashboard = async (req, res) => {
       createdAt: shop.createdAt,
     }));
 
+    // Generate weekTrend for Admin Dashboard Chart
+    const weekStart = new Date();
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - 6);
+
+    const weekOrders = await Order.find({ createdAt: { $gte: weekStart } })
+      .select('totalAmount status createdAt')
+      .lean();
+
+    const trendMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+      trendMap[dayName] = { day: dayName, revenue: 0, orders: 0 };
+    }
+
+    weekOrders.forEach((o) => {
+      const dayName = new Date(o.createdAt).toLocaleDateString('en-IN', { weekday: 'short' });
+      if (trendMap[dayName]) {
+        trendMap[dayName].orders += 1;
+        if (o.status === 'delivered') {
+          trendMap[dayName].revenue += o.totalAmount || 0;
+        }
+      }
+    });
+
+    const weekTrend = Object.values(trendMap);
+
     res.status(200).json({
       stats: {
         totalUsers,
@@ -62,6 +91,7 @@ exports.getAdminDashboard = async (req, res) => {
       },
       pendingShops: formattedPending,
       recentOrders: formattedOrders,
+      weekTrend,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

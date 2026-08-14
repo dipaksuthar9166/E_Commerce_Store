@@ -17,6 +17,7 @@ const bannerRoutes = require('./routes/bannerRoutes');
 const productRoutes = require('./routes/productRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const configRoutes = require('./routes/configRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const app = express();
 const server = http.createServer(app);
 
@@ -134,6 +135,51 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Chat system
+  socket.on('joinChat', (chatId) => {
+    if (!chatId) return;
+    socket.join(chatId);
+    console.log(`Socket ${socket.id} joined chat ${chatId}`);
+  });
+
+  socket.on('leaveChat', (chatId) => {
+    if (!chatId) return;
+    socket.leave(chatId);
+    console.log(`Socket ${socket.id} left chat ${chatId}`);
+  });
+
+  socket.on('sendMessage', async (data) => {
+    try {
+      const Message = require('./models/Message');
+      const { chatId, senderId, senderModel, text } = data;
+      
+      const newMessage = await Message.create({
+        chatId,
+        senderId,
+        senderModel,
+        text,
+      });
+
+      // Broadcast to both customer and vendor
+      io.to(chatId).emit('receiveMessage', newMessage);
+      
+      // Also notify vendor overall room if they aren't in this specific chat
+      const shopId = chatId.split('_')[1];
+      if (senderModel === 'User' && shopId) {
+        io.to(`shop_${shopId}`).emit('newChatMessage', newMessage);
+      }
+      
+      // Notify customer if vendor sent it
+      const userId = chatId.split('_')[0];
+      if (senderModel === 'Shop' && userId) {
+        io.to(`user_${userId}`).emit('newChatMessage', newMessage);
+      }
+
+    } catch (error) {
+      console.error('Socket sendMessage error:', error);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
   });
@@ -169,6 +215,7 @@ app.use('/api/delivery', deliveryRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Lightweight health check — used by keep-alive pings (no DB work)
 app.get('/api/health', (req, res) => {
@@ -188,6 +235,58 @@ mongoose
   .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/mersko')
   .then(() => {
     console.log('MongoDB Connected');
+
+    // ─── RIDER SIMULATOR FOR LIVE TRACKING (DEMO) ───
+    setInterval(async () => {
+      try {
+        const Order = require('./models/Order');
+        // Find all orders that are currently out for delivery
+        const activeOrders = await Order.find({ status: 'out_for_delivery' });
+        
+        for (let order of activeOrders) {
+          // If no deliveryCoords exist, we can't move towards them
+          if (!order.deliveryCoords || !order.deliveryCoords.lat) continue;
+          
+          const destLat = order.deliveryCoords.lat;
+          const destLng = order.deliveryCoords.lng;
+          
+          // Initialize simulated rider location if not present
+          // Fallback to Jaipur center if shop address wasn't geocoded
+          if (!order._simulatedRider) {
+            order._simulatedRider = {
+              lat: 26.9124 + (Math.random() - 0.5) * 0.05,
+              lng: 75.7873 + (Math.random() - 0.5) * 0.05
+            };
+          }
+          
+          // Move rider 5% closer to destination each tick
+          const diffLat = destLat - order._simulatedRider.lat;
+          const diffLng = destLng - order._simulatedRider.lng;
+          
+          // Stop moving if extremely close
+          if (Math.abs(diffLat) < 0.0001 && Math.abs(diffLng) < 0.0001) {
+            continue;
+          }
+          
+          order._simulatedRider.lat += diffLat * 0.05;
+          order._simulatedRider.lng += diffLng * 0.05;
+          
+          // We use markModified because _simulatedRider isn't in the schema, 
+          // but we can just use mongoose strict: false or save it temporarily, 
+          // or just emit without saving to DB. Emitting without saving is fine for demo!
+          
+          io.to(`order_track_${order._id}`).emit('deliveryLocationUpdated', {
+            orderId: String(order._id),
+            lat: order._simulatedRider.lat,
+            lng: order._simulatedRider.lng,
+            at: new Date().toISOString(),
+          });
+        }
+      } catch (err) {
+        // ignore simulator errors
+      }
+    }, 4000);
+    // ──────────────────────────────────────────────
 
     server.listen(PORT, '0.0.0.0', () => {
       // Show real LAN IPs so phone testing is easy
@@ -216,15 +315,11 @@ mongoose
       }
 
       // Render free tier sleeps after ~15 min idle. Self-ping keeps it warm.
-      // Set KEEP_ALIVE_URL to your public API root, e.g. https://xxx.onrender.com
-      // Or rely on RENDER_EXTERNAL_URL which Render injects automatically.
       const keepAliveBase = (
         process.env.KEEP_ALIVE_URL ||
         process.env.RENDER_EXTERNAL_URL ||
         ''
       ).replace(/\/+$/, '');
-      // Note: self-ping only helps WHILE the dyno is awake. Free Render still
-      // needs an external cron (UptimeRobot / cron-job.org) after full sleep.
       if (keepAliveBase) {
         const pingUrl = `${keepAliveBase}/api/health`;
         const intervalMs = Number(process.env.KEEP_ALIVE_INTERVAL_MS) || 10 * 60 * 1000;

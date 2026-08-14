@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Dark navy background -->
+    <item>
+        <color android:color="#0D1526"/>
+    </item>
+
+    <!-- Gold outer ring centered -->
+    <item
+        android:bottom="200dp"
+        android:left="80dp"
+        android:right="80dp"
+        android:top="200dp">
+        <shape android:shape="oval">
+            <stroke android:width="4dp" android:color="#C9A227"/>
+            <solid android:color="#0D1526"/>
+        </shape>
+    </item>
+
+    <!-- M/ icon in center - using foreground drawable -->
+    <item
+        android:bottom="270dp"
+        android:left="120dp"
+        android:right="120dp"
+        android:top="270dp">
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/ic_launcher_foreground"/>
+    </item>
+
+</layer-list>

@@ -4,6 +4,13 @@ import TopNav from '../components/TopNav';
 import BottomNav from '../components/BottomNav';
 import Sidebar from '../components/Sidebar';
 import { BrandMark } from '../components/BrandMark';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const pageVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+  exit:    { opacity: 0, y: -8, transition: { duration: 0.2, ease: 'easeIn' } },
+};
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -21,16 +28,26 @@ const MainLayout = () => {
         <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
 
         <main className="flex-1 w-full min-w-0 pb-24 md:pb-8 overflow-x-hidden">
-          {isProductPage ? (
-            /* Product page: no padding on mobile so image goes edge-to-edge */
-            <div className="w-full md:px-6 md:py-5">
-              <Outlet />
-            </div>
-          ) : (
-            <div className="w-full px-3 sm:px-4 md:px-6 md:py-5 py-3">
-              <Outlet />
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              {isProductPage ? (
+                /* Product page: no padding on mobile so image goes edge-to-edge */
+                <div className="w-full md:px-6 md:py-5">
+                  <Outlet />
+                </div>
+              ) : (
+                <div className="w-full px-3 sm:px-4 md:px-6 md:py-5 py-3">
+                  <Outlet />
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

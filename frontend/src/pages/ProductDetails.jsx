@@ -11,7 +11,9 @@ import api from '../api/axios';
 import { getProductImage, getProductImageByIndex } from '../utils/productImage';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
+import FrequentlyBoughtTogether from '../components/FrequentlyBoughtTogether';
 import toast from 'react-hot-toast';
+import CustomerChat from '../components/chat/CustomerChat';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -424,6 +426,16 @@ const ProductDetails = () => {
           </div>
         )}
 
+        {/* Frequently Bought Together (Mobile) */}
+        {relatedProducts.length > 0 && (
+          <div className="px-4 mb-4">
+            <FrequentlyBoughtTogether 
+              mainProduct={product} 
+              relatedProduct={relatedProducts[0]} 
+            />
+          </div>
+        )}
+
         {/* Reviews */}
         <div className="bg-white mt-2 px-4 py-4">
           <h2 className="text-sm font-bold text-gray-800 mb-3">Ratings & Reviews</h2>
@@ -713,6 +725,14 @@ const ProductDetails = () => {
               </div>
             )}
 
+            {/* Frequently Bought Together (Desktop) */}
+            {relatedProducts.length > 0 && (
+              <FrequentlyBoughtTogether 
+                mainProduct={product} 
+                relatedProduct={relatedProducts[0]} 
+              />
+            )}
+
             {/* Reviews */}
             <div id="reviews" className="border-t border-gray-100 pt-6">
               <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -813,6 +833,10 @@ const ProductDetails = () => {
           </motion.button>
         </div>
       </div>
+      {/* Customer Chat Widget */}
+      {product?.shop?._id && (
+        <CustomerChat shopId={product.shop._id} shopName={product.shop.name || 'Seller'} />
+      )}
     </div>
   );
 };

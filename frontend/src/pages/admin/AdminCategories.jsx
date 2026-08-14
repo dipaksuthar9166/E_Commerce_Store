@@ -1,21 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, X, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Layers } from 'lucide-react';
 import api from '../../api/axios';
+import {
+  PageShell,
+  PageHeader,
+  RefreshButton,
+  StatCard,
+  SurfaceCard,
+  CardHeader,
+  SearchField,
+  DataTable,
+  TableHead,
+  Th,
+  TableBody,
+  Tr,
+  TableEmpty,
+  TableSkeleton,
+  TableFooter,
+  PrimaryButton,
+  SecondaryButton,
+  fieldClass,
+  labelClass,
+  tdClass,
+} from '../../components/ui/PageUI';
 
 const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
   const [showModal, setShowModal] = useState(false);
   const [currentCategory, setCurrentCategory] = useState({ name: '' });
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
   const fetchCategories = async () => {
+    setLoading(true);
     try {
       const { data } = await api.get('/admin/categories');
       setCategories(data);
@@ -25,6 +43,10 @@ const AdminCategories = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   const handleOpenModal = (category = null) => {
     if (category) {
@@ -49,7 +71,9 @@ const AdminCategories = () => {
 
     try {
       if (isEditing) {
-        await api.put(`/admin/categories/${currentCategory._id}`, { name: currentCategory.name });
+        await api.put(`/admin/categories/${currentCategory._id}`, {
+          name: currentCategory.name,
+        });
       } else {
         await api.post('/admin/categories', { name: currentCategory.name });
       }
@@ -70,125 +94,147 @@ const AdminCategories = () => {
     }
   };
 
-  const filteredCategories = categories.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredCategories = categories.filter((c) =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Layers className="text-blue-600" /> Master Categories
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">Manage global categories for the marketplace.</p>
-        </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition"
-        >
-          <Plus size={18} /> Add Category
-        </button>
+    <PageShell>
+      <PageHeader
+        title="Master Categories"
+        subtitle="Manage global categories for the marketplace."
+        actions={
+          <>
+            <RefreshButton onClick={fetchCategories} loading={loading} />
+            <PrimaryButton onClick={() => handleOpenModal()}>
+              <Plus size={16} /> Add Category
+            </PrimaryButton>
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Categories"
+          value={loading ? '—' : categories.length}
+          subtitle="Platform-wide"
+          icon={Layers}
+          iconColor="bg-indigo-50 text-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-400"
+          bar="from-indigo-400 via-violet-400 to-fuchsia-500"
+        />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <div className="relative max-w-sm w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Search categories..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
-            />
-          </div>
-          <span className="text-sm text-gray-500 font-medium">{filteredCategories.length} Categories</span>
-        </div>
+      <SurfaceCard delay={0.08}>
+        <SearchField
+          label="Search Categories"
+          placeholder="Search categories..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </SurfaceCard>
 
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
-        ) : filteredCategories.length === 0 ? (
-          <div className="p-12 text-center">
-            <Layers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">No categories found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50/80 text-gray-700 font-semibold border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4">Category Name</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredCategories.map(cat => (
-                  <tr key={cat._id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">{cat.name}</td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-3">
-                        <button 
-                          onClick={() => handleOpenModal(cat)}
-                          className="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 hover:bg-blue-100 rounded transition"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(cat._id)}
-                          className="text-red-600 hover:text-red-800 p-1 bg-red-50 hover:bg-red-100 rounded transition"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <SurfaceCard padding={false} delay={0.12}>
+        <CardHeader
+          title="Categories Directory"
+          subtitle={`${filteredCategories.length} result${filteredCategories.length !== 1 ? 's' : ''}`}
+        />
+
+        <DataTable minWidth="480px">
+          <TableHead>
+            <Th>Category Name</Th>
+            <Th className="text-right">Actions</Th>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableSkeleton rows={5} colSpan={2} />
+            ) : filteredCategories.length === 0 ? (
+              <TableEmpty
+                icon={Layers}
+                title="No categories found"
+                subtitle="Add a category or adjust your search."
+                colSpan={2}
+              />
+            ) : (
+              filteredCategories.map((cat) => (
+                <Tr key={cat._id}>
+                  <td className={`${tdClass} font-semibold text-slate-800 dark:text-slate-100`}>
+                    {cat.name}
+                  </td>
+                  <td className={`${tdClass} text-right`}>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenModal(cat)}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 transition-colors"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(cat._id)}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </Tr>
+              ))
+            )}
+          </TableBody>
+        </DataTable>
+
+        {!loading && (
+          <TableFooter>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {filteredCategories.length} of {categories.length} categories
+            </p>
+          </TableFooter>
         )}
-      </div>
+      </SurfaceCard>
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-900">{isEditing ? 'Edit Category' : 'New Category'}</h2>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-slate-800">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                {isEditing ? 'Edit Category' : 'New Category'}
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-5">
-              <div className="mb-5">
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category Name</label>
-                <input 
-                  type="text" 
+            <form onSubmit={handleSubmit} className="p-5 space-y-5">
+              <div>
+                <label className={labelClass}>Category Name</label>
+                <input
+                  type="text"
                   value={currentCategory.name}
-                  onChange={(e) => setCurrentCategory({ ...currentCategory, name: e.target.value })}
+                  onChange={(e) =>
+                    setCurrentCategory({ ...currentCategory, name: e.target.value })
+                  }
                   placeholder="e.g. Electronics, Clothing"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className={fieldClass}
                   required
                 />
               </div>
               <div className="flex justify-end gap-3">
-                <button 
-                  type="button" 
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition"
-                >
+                <SecondaryButton type="button" onClick={handleCloseModal}>
                   Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-sm shadow-blue-500/30"
-                >
+                </SecondaryButton>
+                <PrimaryButton type="submit">
                   {isEditing ? 'Save Changes' : 'Create Category'}
-                </button>
+                </PrimaryButton>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 };
 

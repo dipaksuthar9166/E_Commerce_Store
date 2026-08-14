@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
   Camera,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import api from '../../api/axios';
 import BulkUploadModal from '../../components/vendor/BulkUploadModal';
@@ -304,11 +305,15 @@ const VendorProducts = () => {
     if (editingProduct.colors) formData.append('colors', editingProduct.colors);
     if (editingProduct.sizes) formData.append('sizes', editingProduct.sizes);
     
-    if (editingProduct.imagePath && !imageFile) {
+    if (editingProduct.imagePath && !imageFile && !editingProduct.clearImage) {
       formData.append('imagePath', editingProduct.imagePath);
     }
     
-    formData.append('skipAiImage', Boolean(editingProduct.imagePath || imageFile));
+    if (editingProduct.clearImage) {
+      formData.append('clearImage', 'true');
+    }
+    
+    formData.append('skipAiImage', Boolean((editingProduct.imagePath && !editingProduct.clearImage) || imageFile));
 
     if (imageFile) {
       formData.append('image', imageFile);
@@ -337,6 +342,17 @@ const VendorProducts = () => {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async (productId) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await api.delete(`/vendor/products/${productId}`);
+      setProducts(products.filter((p) => p._id !== productId));
+    } catch (error) {
+      console.error('Failed to delete product', error);
+      alert('Failed to delete product.');
     }
   };
 
@@ -539,8 +555,16 @@ const VendorProducts = () => {
                       <button
                         onClick={() => handleOpenPromoModal(product)}
                         className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                        title="Promote"
                       >
                         <Tag size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product._id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={15} />
                       </button>
                     </td>
                   </tr>
@@ -699,6 +723,14 @@ const VendorProducts = () => {
                       </p>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingProduct({ ...editingProduct, imagePath: '', images: [], clearImage: true })}
+                    className="ml-auto p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                    title="Remove Image"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
               )}
 
@@ -822,7 +854,9 @@ const VendorProducts = () => {
                 <div className="flex items-center gap-3">
                   <label className="flex-1 cursor-pointer flex flex-col items-center justify-center py-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
                     <Upload size={18} className="text-gray-400 mb-1.5" />
-                    <span className="text-[11px] text-gray-500 font-medium">Upload / Capture Image</span>
+                    <span className="text-[11px] text-gray-500 font-medium">
+                      {(productHasImage(editingProduct) || editingProduct.imagePath) ? 'Replace Image' : 'Upload / Capture Image'}
+                    </span>
                     <input
                       type="file"
                       accept="image/*"

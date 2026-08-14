@@ -18,10 +18,14 @@ import AdminLayout from "./layouts/AdminLayout";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SocketProvider } from "./contexts/SocketContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { LocationProvider } from "./contexts/LocationContext";
 import { Toaster } from 'react-hot-toast';
 
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
+import LocationPickerModal from './components/LocationPickerModal';
+import InstallPWABanner from './components/InstallPWABanner';
 
 // Lazy Pages
 const Home = lazy(() => import("./pages/Home"));
@@ -111,10 +115,6 @@ const DeliveryHistory = lazy(() =>
 );
 const DeliveryProfile = lazy(() =>
   import("./pages/delivery/DeliveryProfile")
-);
-
-const LocationPickerModal = lazy(() =>
-  import("./components/LocationPickerModal")
 );
 
 function PageLoader() {
@@ -238,10 +238,14 @@ function AnimatedRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
         <SocketProvider>
-          <CartProvider>
+          <NotificationProvider>
+            <CartProvider>
             <LocationProvider>
+              <LocationPickerModal />
+              <InstallPWABanner />
               <Toaster 
                 position="top-center"
                 toastOptions={{
@@ -260,11 +264,13 @@ function App() {
 
               <Suspense fallback={<PageLoader />}>
                 <AnimatedRoutes />
-              </Suspense>
-            </LocationProvider>
-          </CartProvider>
+                </Suspense>
+              </LocationProvider>
+            </CartProvider>
+          </NotificationProvider>
         </SocketProvider>
       </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

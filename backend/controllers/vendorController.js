@@ -2,8 +2,9 @@ const Shop = require('../models/Shop');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const Category = require('../models/Category');
-const { generateProductPrompt } = require('../utils/promptGenerator');
-const { generateAndStoreImage } = require('../services/aiImageService');
+const Banner = require('../models/Banner');
+const { generateProductPrompt, generateBannerPrompt } = require('../utils/promptGenerator');
+const { generateAndStoreImage, generateAndStoreImageUrl } = require('../services/aiImageService');
 const { lookupBarcode, cleanBarcode } = require('../services/barcodeLookupService');
 const xlsx = require('xlsx');
 const { uploadBufferToS3 } = require('../services/uploadService');
@@ -366,6 +367,8 @@ exports.addVendorProduct = async (req, res) => {
       barcode,
       imagePath: providedImage,
       skipAiImage,
+      promo_tag,
+      discount_percent,
     } = req.body;
 
     if (!name || price === undefined || price === null || price === '') {
@@ -417,7 +420,40 @@ exports.addVendorProduct = async (req, res) => {
       category: resolvedCategory?.name || categoryName || '',
       images: resolvedImages.images,
       imagePath: resolvedImages.imagePath || '',
+      promo_tag: promo_tag || null,
+      discount_percent: discount_percent || 0,
     });
+    
+    // --- Automatic Banner Generation ---
+    if (product.discount_percent && product.discount_percent > 0) {
+      console.log(`[Banner] Product ${product.name} has discount, generating promotional banner...`);
+      // Run this in background, don't wait for it to finish
+      (async () => {
+        try {
+          const prompt = generateBannerPrompt(product.name, product.discount_percent, product.category);
+          const imageUrl = await generateAndStoreImageUrl(prompt);
+          
+          if (imageUrl) {
+            const newBanner = new Banner({
+              shopId: shop._id,
+              title: `${product.discount_percent}% Off ${product.name}!`,
+              subtitle: `Limited time offer on ${product.name}`,
+              imagePath: imageUrl,
+              buttonText: 'Shop Now',
+              targetUrl: `/product/${product._id}`,
+              status: 'approved',
+              isActive: true,
+            });
+            await newBanner.save();
+            console.log(`[Banner] Successfully created and saved promotional banner for ${product.name}`);
+          }
+        } catch (bannerError) {
+          console.error(`[Banner] Failed to generate promotional banner for ${product.name}:`, bannerError);
+        }
+      })();
+    }
+    // --- End Automatic Banner Generation ---
+
 
     const populatedProduct = await Product.findById(product._id).populate('categoryId', 'name');
     res.status(201).json(

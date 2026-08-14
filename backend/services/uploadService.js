@@ -34,7 +34,11 @@ const uploadBufferToS3 = async (buffer, originalName, mimetype) => {
     const permanentUrl = `https://${s3Params.Bucket}.s3.${s3Region}.amazonaws.com/${s3Params.Key}`;
     return permanentUrl;
   } catch (error) {
-    console.error('--- S3 UPLOAD FAILED ---', error);
+    if (error.name === 'NoSuchBucket' || error.Code === 'NoSuchBucket') {
+      console.warn(`[upload] S3 Bucket "${s3Params.Bucket}" does not exist. Falling back to local/database storage.`);
+    } else {
+      console.warn(`[upload] S3 Upload failed: ${error.message || 'Unknown error'}. Falling back to local/database storage.`);
+    }
     return null;
   }
 };

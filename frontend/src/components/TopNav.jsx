@@ -12,8 +12,10 @@ import {
   Package,
   MapPin,
   Loader2,
+  Globe,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDeliveryLocation } from '../contexts/LocationContext';
@@ -72,6 +74,7 @@ const LocationButton = ({ compact = false }) => {
 /** Click-based account menu — works on touch (mobile) and desktop */
 const AccountMenu = ({ variant = 'desktop' }) => {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -126,7 +129,7 @@ const AccountMenu = ({ variant = 'desktop' }) => {
         to="/login"
         className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors shadow-md shadow-blue-600/20 font-semibold"
       >
-        <LogIn className="w-4 h-4" /> Login
+        <LogIn className="w-4 h-4" /> {t('nav.login')}
       </Link>
     );
   }
@@ -189,7 +192,7 @@ const AccountMenu = ({ variant = 'desktop' }) => {
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 active:bg-slate-100"
           >
-            <Package className="w-4 h-4" /> My Orders
+            <Package className="w-4 h-4" /> {t('nav.orders')}
           </Link>
           <Link
             to="/wishlist"
@@ -197,7 +200,7 @@ const AccountMenu = ({ variant = 'desktop' }) => {
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 active:bg-slate-100"
           >
-            <Heart className="w-4 h-4" /> Wishlist
+            <Heart className="w-4 h-4" /> {t('nav.wishlist')}
           </Link>
           <div className="h-px bg-slate-100 my-1" />
           <button
@@ -217,6 +220,7 @@ const AccountMenu = ({ variant = 'desktop' }) => {
 
 const TopNav = ({ toggleSidebar }) => {
   const { getCartCount } = useCart();
+  const { t, lang, toggleLanguage } = useLanguage();
   const cartCount = getCartCount();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,7 +253,7 @@ const TopNav = ({ toggleSidebar }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-11 pr-28 py-2.5 rounded-2xl bg-slate-100 border-2 border-transparent text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
-            placeholder="Search for products, brands and more..."
+            placeholder={t('nav.searchPlaceholder')}
           />
           <button
             type="submit"
@@ -260,6 +264,14 @@ const TopNav = ({ toggleSidebar }) => {
         </form>
 
         <div className="flex items-center gap-1 sm:gap-2 text-sm font-medium text-slate-700 flex-shrink-0">
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+          >
+            <Globe className="w-4 h-4 text-blue-600" />
+            {lang.toUpperCase()}
+          </button>
+          
           <ThemeToggle variant="light" />
 
           <AccountMenu variant="desktop" />
@@ -269,7 +281,7 @@ const TopNav = ({ toggleSidebar }) => {
             className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors"
           >
             <ClipboardList className="w-5 h-5" />
-            <span>Orders</span>
+            <span>{t('nav.orders')}</span>
           </Link>
 
           <Link
@@ -277,7 +289,7 @@ const TopNav = ({ toggleSidebar }) => {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-50 hover:text-blue-600 transition-colors"
           >
             <Heart className="w-5 h-5" />
-            <span className="hidden lg:inline">Wishlist</span>
+            <span className="hidden lg:inline">{t('nav.wishlist')}</span>
           </Link>
 
           <Link
@@ -298,7 +310,7 @@ const TopNav = ({ toggleSidebar }) => {
                 </motion.span>
               )}
             </div>
-            <span className="font-semibold">Cart</span>
+            <span className="font-semibold">{t('nav.cart')}</span>
           </Link>
         </div>
       </div>
@@ -341,6 +353,10 @@ const TopNav = ({ toggleSidebar }) => {
                 </motion.span>
               )}
             </Link>
+            <button onClick={toggleLanguage} className="p-2 text-slate-600 font-bold text-xs flex items-center gap-1 bg-slate-100 rounded-lg">
+              <Globe className="w-3.5 h-3.5" />
+              {lang.toUpperCase()}
+            </button>
             <ThemeToggle variant="ghost" />
             <AccountMenu variant="mobile" />
           </div>
@@ -355,7 +371,7 @@ const TopNav = ({ toggleSidebar }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-100 border border-transparent text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
-            placeholder="Search products, brands..."
+            placeholder={t('nav.searchPlaceholder')}
           />
         </form>
       </div>

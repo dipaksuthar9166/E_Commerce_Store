@@ -1,6 +1,7 @@
 import React from 'react';
 import { HelpCircle, Mail, MessageCircle, BookOpen, Package, ShoppingBag, Image as ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import VendorChat from '../../components/chat/VendorChat';
 
 const faqs = [
   {
@@ -28,14 +29,37 @@ const quickLinks = [
 ];
 
 const VendorSupport = () => {
+  const [activeTab, setActiveTab] = React.useState('chat');
+
   return (
     <div className="space-y-6 max-w-[1200px] mx-auto animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Help & Support</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          Quick answers for sellers. Contact us if you still need help.
-        </p>
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Help & Chat</h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Chat with customers in real-time or read help articles.
+          </p>
+        </div>
+        <div className="flex bg-gray-100 p-1 rounded-lg">
+          <button 
+            onClick={() => setActiveTab('chat')}
+            className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'chat' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}
+          >
+            Live Chat
+          </button>
+          <button 
+            onClick={() => setActiveTab('help')}
+            className={`px-4 py-2 rounded-md text-sm font-bold ${activeTab === 'help' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}
+          >
+            Help Center
+          </button>
+        </div>
       </div>
+
+      {activeTab === 'chat' ? (
+        <VendorChat />
+      ) : (
+        <div className="space-y-6">
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <a
@@ -56,9 +80,9 @@ const VendorSupport = () => {
             <MessageCircle size={18} />
           </div>
           <div>
-            <p className="font-semibold text-gray-900">Seller chat</p>
-            <p className="text-sm text-gray-500 mt-0.5">In-app chat is coming soon.</p>
-            <p className="text-xs text-gray-400 mt-1">Use email for account or payout issues.</p>
+            <p className="font-semibold text-gray-900">Customer chat</p>
+            <p className="text-sm text-gray-500 mt-0.5">Use the Live Chat tab to message your customers directly.</p>
+            <button onClick={() => setActiveTab('chat')} className="text-xs font-bold text-orange-600 mt-2 bg-orange-50 px-2 py-1 rounded">Open Chat</button>
           </div>
         </div>
       </div>
@@ -102,6 +126,8 @@ const VendorSupport = () => {
           ))}
         </div>
       </div>
+        </div>
+      )}
     </div>
   );
 };

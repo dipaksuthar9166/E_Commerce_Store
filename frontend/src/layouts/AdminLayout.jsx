@@ -57,9 +57,9 @@ const AdminLayout = () => {
     .toUpperCase();
 
   return (
-    <div className="flex h-screen bg-slate-950 font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#f4f6fb] dark:bg-slate-950 font-sans overflow-hidden transition-colors">
 
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar (always dark for brand contrast) ── */}
       <aside className="w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 flex flex-col border-r border-slate-800/60 shrink-0 shadow-2xl shadow-black/40">
 
         {/* Logo */}
@@ -139,15 +139,15 @@ const AdminLayout = () => {
           </span>
         </div>
 
-        {/* Top Header */}
-        <header className="h-14 bg-white/[0.03] border-b border-slate-800/60 flex items-center justify-between px-6 shrink-0 backdrop-blur-sm">
+        {/* Top Header — light/dark */}
+        <header className="h-14 bg-white dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800/60 flex items-center justify-between px-6 shrink-0 backdrop-blur-sm transition-colors">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 text-xs font-medium">Admin</span>
+            <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">Admin</span>
             {breadcrumbs.map((crumb, i) => (
               <React.Fragment key={i}>
-                <ChevronRight size={12} className="text-slate-700" />
-                <span className={`text-xs font-semibold ${i === breadcrumbs.length - 1 ? 'text-white' : 'text-slate-400'}`}>
+                <ChevronRight size={12} className="text-slate-300 dark:text-slate-700" />
+                <span className={`text-xs font-semibold ${i === breadcrumbs.length - 1 ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>
                   {crumb}
                 </span>
               </React.Fragment>
@@ -156,31 +156,27 @@ const AdminLayout = () => {
 
           {/* Right: bell + avatar + logout */}
           <div className="flex items-center gap-3">
-            {/* Notification bell */}
-            <button className="relative w-9 h-9 bg-slate-800/60 hover:bg-slate-700/60 rounded-xl flex items-center justify-center transition-colors border border-slate-700/40">
-              <Bell size={16} className="text-slate-400" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-slate-900" />
+            <button className="relative w-9 h-9 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-700/60 rounded-xl flex items-center justify-center transition-colors border border-slate-200 dark:border-slate-700/40">
+              <Bell size={16} className="text-slate-500 dark:text-slate-400" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-slate-900" />
             </button>
-            <ThemeToggle variant="solid" className="!bg-slate-800 !text-slate-200 !border-slate-700 hover:!bg-slate-700" />
+            <ThemeToggle variant="solid" />
 
-            {/* Admin name + avatar */}
             <div className="flex items-center gap-2.5">
               <div className="text-right hidden sm:block">
-                <p className="text-white text-xs font-semibold leading-tight">{adminName}</p>
-                <p className="text-slate-500 text-[10px]">Super Admin</p>
+                <p className="text-slate-900 dark:text-white text-xs font-semibold leading-tight">{adminName}</p>
+                <p className="text-slate-400 dark:text-slate-500 text-[10px]">Super Admin</p>
               </div>
               <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center font-bold text-white text-sm shadow-md shadow-blue-500/30 border border-blue-400/30">
                 {adminInitials}
               </div>
             </div>
 
-            {/* Divider */}
-            <div className="w-px h-6 bg-slate-700/60" />
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700/60" />
 
-            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-slate-400 hover:text-red-400 text-sm font-medium transition-colors px-3 py-2 rounded-xl hover:bg-red-500/10"
+              className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 text-sm font-medium transition-colors px-3 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10"
             >
               <LogOut size={15} />
               <span className="hidden sm:inline">Logout</span>
@@ -188,8 +184,8 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-slate-950">
+        {/* Scrollable content — shared page canvas */}
+        <main className="flex-1 overflow-y-auto p-6 bg-[#f4f6fb] dark:bg-slate-950 transition-colors">
           <Outlet />
         </main>
       </div>

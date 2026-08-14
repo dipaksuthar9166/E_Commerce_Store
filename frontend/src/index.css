@@ -295,4 +295,9 @@ html.dark textarea::placeholder {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
+
+  @keyframes sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
 }
