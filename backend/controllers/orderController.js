@@ -2,8 +2,10 @@ const Order = require('../models/Order');
 const Shop = require('../models/Shop');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
+const User = require('../models/User');
 const { sendSms } = require('../services/smsService');
 const { emitOrderStatusUpdated } = require('../utils/orderSocket');
+const { sendPushNotification } = require('../services/notificationService');
 
 const ONLINE_METHODS = ['upi', 'card', 'netbanking', 'pay_later', 'emi'];
 const PRE_DISPATCH = ['pending', 'accepted', 'packing'];
@@ -313,6 +315,16 @@ exports.placeOrder = async (req, res) => {
       if (io) {
         const populatedOrder = await Order.findById(order._id).populate('userId', 'name email phone');
         io.to(`shop_${shopId}`).emit('newOrder', populatedOrder);
+        
+        // Push notification to Vendor
+        const shop = await Shop.findById(shopId).populate('userId');
+        if (shop && shop.userId) {
+          await sendPushNotification(shop.userId, {
+            title: 'New Order Received! 🛒',
+            body: `You have received a new order for ₹${order.totalAmount}.`,
+            url: `/vendor/orders/${order._id}`
+          });
+        }
       }
     }
 
@@ -924,7 +936,22 @@ exports.updateOrderTimeline = async (req, res) => {
     order.status = status;
     order.timeline.push({ status, description });
     await order.save();
-    res.json(order);
+    
+    const populatedOrder = await loadFullOrder(order._id);
+    const io = req.app.get('io');
+    emitOrderStatusUpdated(io, order, populatedOrder);
+
+    // Push notification to Customer
+    const user = await User.findById(order.userId);
+    if (user) {
+      await sendPushNotification(user, {
+        title: 'Order Status Updated',
+        body: \`Your order status is now: \${status}. \${description}\`,
+        url: \`/orders/\${order._id}\`
+      });
+    }
+
+    res.json(populatedOrder);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -958,6 +985,16 @@ exports.verifyDelivery = async (req, res) => {
     const populatedOrder = await loadFullOrder(order._id);
     const io = req.app.get('io');
     emitOrderStatusUpdated(io, order, populatedOrder);
+
+    // Push notification to Customer
+    const user = await User.findById(order.userId);
+    if (user) {
+      await sendPushNotification(user, {
+        title: 'Order Delivered! 🎉',
+        body: 'Your order has been successfully delivered. Thank you for shopping with MERSKO!',
+        url: \`/orders/\${order._id}\`
+      });
+    }
 
     res.json({ message: 'Delivery verified successfully', order: populatedOrder });
   } catch (error) {

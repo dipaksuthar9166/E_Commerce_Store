@@ -48,6 +48,13 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Product'
   }],
+  pushSubscriptions: [{
+    endpoint: String,
+    keys: {
+      p256dh: String,
+      auth: String
+    }
+  }],
   isActive: { type: Boolean, default: true }, // Admin can deactivate
   passwordResetToken: String,
   passwordResetExpires: Date,

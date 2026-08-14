@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { X, ChevronRight, Star, SlidersHorizontal, RotateCcw, Loader2 } from 'lucide-react';
 import { isCategoryPathActive } from '../data/customerCategories';
 import usePublicCategories from '../hooks/usePublicCategories';
+import usePushNotifications from '../hooks/usePushNotifications';
+import { Bell, BellOff } from 'lucide-react';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
@@ -10,6 +12,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const [searchParams] = useSearchParams();
   const currentPath = location.pathname;
   const { navItems, loading } = usePublicCategories();
+  const { isSubscribed, permission, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
 
   const [maxPrice, setMaxPrice] = useState(Number(searchParams.get('maxPrice')) || 10000);
   const [minRating, setMinRating] = useState(Number(searchParams.get('rating')) || 0);
@@ -183,6 +186,35 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               title="Reset filters"
             >
               <RotateCcw className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="mx-4 my-4 h-px bg-slate-100" />
+          
+          <div className="px-5 mb-4">
+            <button
+              type="button"
+              onClick={isSubscribed ? unsubscribe : subscribe}
+              disabled={pushLoading}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border transition-colors ${
+                isSubscribed 
+                  ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100' 
+                  : 'border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100'
+              }`}
+            >
+              {pushLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isSubscribed ? (
+                <>
+                  <BellOff className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Disable Notifications</span>
+                </>
+              ) : (
+                <>
+                  <Bell className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Enable Notifications</span>
+                </>
+              )}
             </button>
           </div>
         </div>

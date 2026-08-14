@@ -18,6 +18,8 @@ const productRoutes = require('./routes/productRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const configRoutes = require('./routes/configRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const { sendPushNotification } = require('./services/notificationService');
 const app = express();
 const server = http.createServer(app);
 
@@ -173,6 +175,28 @@ io.on('connection', (socket) => {
       const userId = chatId.split('_')[0];
       if (senderModel === 'Shop' && userId) {
         io.to(`user_${userId}`).emit('newChatMessage', newMessage);
+        
+        // Push notification to customer
+        const user = await User.findById(userId);
+        if (user) {
+          const shop = await require('./models/Shop').findById(senderId);
+          await sendPushNotification(user, {
+            title: \`New message from \${shop ? shop.shopName : 'Shop'}\`,
+            body: text,
+            url: \`/shop/\${shopId}\`
+          });
+        }
+      } else if (senderModel === 'User' && shopId) {
+        // Push notification to vendor
+        const shop = await require('./models/Shop').findById(shopId).populate('userId');
+        if (shop && shop.userId) {
+          const user = await User.findById(senderId);
+          await sendPushNotification(shop.userId, {
+            title: \`New message from \${user ? user.name : 'Customer'}\`,
+            body: text,
+            url: \`/vendor/support\`
+          });
+        }
       }
 
     } catch (error) {
@@ -216,6 +240,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Lightweight health check — used by keep-alive pings (no DB work)
 app.get('/api/health', (req, res) => {
