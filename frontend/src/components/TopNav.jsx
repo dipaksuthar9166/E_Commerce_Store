@@ -453,20 +453,21 @@ const TopNav = ({ toggleSidebar }) => {
             </button>
             <Link to="/" className="flex items-center gap-2 shrink-0">
               <BrandMark size="sm" />
-              <span className="font-extrabold text-lg tracking-tight text-slate-900">
+              <span className="font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
                 MERSKO
               </span>
             </Link>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            <Link to="/wishlist" className="p-2 text-slate-600">
+          {/* Right icons — keep minimal on mobile */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Link to="/wishlist" className="p-2 text-slate-600 dark:text-slate-300">
               <Heart className="w-5 h-5" />
             </Link>
-            <Link to="/cart" className="p-2 text-slate-600 relative">
+            <Link to="/cart" className="p-2 text-slate-600 dark:text-slate-300 relative">
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
-                <motion.span 
+                <motion.span
                   key={cartCount}
                   initial={{ scale: 0, y: -5 }}
                   animate={{ scale: 1, y: 0 }}
@@ -477,23 +478,7 @@ const TopNav = ({ toggleSidebar }) => {
                 </motion.span>
               )}
             </Link>
-            <button onClick={toggleLanguage} className="p-2 text-slate-600 font-bold text-xs flex items-center gap-1 bg-slate-100 rounded-lg">
-              <Globe className="w-3.5 h-3.5" />
-              {lang.toUpperCase()}
-            </button>
             <ThemeToggle variant="ghost" />
-            {/* ── Install App button (mobile) — always visible ── */}
-            <motion.button
-              onClick={handleInstallClick}
-              whileTap={{ scale: 0.9 }}
-              className="p-2 rounded-xl bg-blue-600 text-white relative"
-              title="Install App"
-            >
-              <Download className="w-4 h-4" />
-              {isInstallable && (
-                <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" />
-              )}
-            </motion.button>
             <AccountMenu variant="mobile" />
           </div>
         </div>
@@ -506,9 +491,22 @@ const TopNav = ({ toggleSidebar }) => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-100 border border-transparent text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
+            className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white dark:focus:bg-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
             placeholder={t('nav.searchPlaceholder')}
           />
+          {/* Inline install button inside search bar */}
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-bold"
+            title="Install App"
+          >
+            {isInstallable && (
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping shrink-0" />
+            )}
+            <Download className="w-3 h-3" />
+            Install
+          </button>
         </form>
       </div>
     </header>
