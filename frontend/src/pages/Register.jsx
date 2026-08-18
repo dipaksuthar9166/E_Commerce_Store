@@ -165,7 +165,6 @@ const Register = () => {
                   size="large"
                   shape="rectangular"
                   logo_alignment="left"
-                  width="400"
                   text="signup_with"
                 />
               </div>
@@ -347,12 +346,13 @@ const Register = () => {
         </div>
       </div>
       
-      {/* Make Google button full width */}
+      {/* Center Google button and ensure it fits */}
       <style>{`
-        .google-login-wrapper > div,
-        .google-login-wrapper iframe,
-        .google-login-wrapper > div > div {
-          width: 100% !important;
+        .google-login-wrapper {
+          display: flex;
+          justify-content: center;
+          width: 100%;
+          overflow: hidden;
         }
       `}</style>
     </div>
