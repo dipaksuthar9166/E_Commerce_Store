@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, Mail, Lock, UserPlus, AlertCircle, Store, MapPin, Truck, ShoppingBag, ArrowRight } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
+import { GoogleLogin } from '@react-oauth/google';
+import toast from 'react-hot-toast';
+import { playSuccessSound } from '../utils/sound';
 
 const ROLES = [
   { key: 'customer', label: 'Customer', icon: ShoppingBag, color: 'blue', desc: 'Shop easily' },
@@ -24,9 +27,21 @@ const Register = () => {
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
+
+  const handleSuccess = (userData) => {
+    playSuccessSound();
+    toast.success(`Welcome, ${userData.name || 'User'}! 🎉`);
+    setTimeout(() => {
+      if (userData.role === 'admin') navigate('/admin');
+      else if (userData.role === 'vendor') navigate('/vendor');
+      else if (userData.role === 'delivery') navigate('/delivery');
+      else navigate('/');
+    }, 1500);
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,15 +55,28 @@ const Register = () => {
     const result = await register(formData);
 
     if (result.success && result.user) {
-      if (result.user.role === 'admin') navigate('/admin');
-      else if (result.user.role === 'vendor') navigate('/vendor');
-      else if (result.user.role === 'delivery') navigate('/delivery');
-      else navigate('/');
+      handleSuccess(result.user);
     } else {
       setError(result.error);
     }
 
     setIsLoading(false);
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setGoogleLoading(true);
+    setError('');
+    const result = await googleLogin(credentialResponse.credential);
+    if (result.success && result.user) {
+      handleSuccess(result.user);
+    } else {
+      setError(result.error || 'Google signup failed. Please try again.');
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google signup was cancelled or failed.');
   };
 
   const selectedRole = ROLES.find(r => r.key === formData.role);
@@ -120,6 +148,35 @@ const Register = () => {
               <span className="text-sm font-medium">{error}</span>
             </div>
           )}
+
+          {/* ── Google Login ── */}
+          <div className="mb-6">
+            {googleLoading ? (
+              <div className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl border border-white/10 bg-white/5 text-gray-400 text-sm font-semibold">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                Signing up with Google...
+              </div>
+            ) : (
+              <div className="google-login-wrapper">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="filled_black"
+                  size="large"
+                  shape="rectangular"
+                  logo_alignment="left"
+                  width="400"
+                  text="signup_with"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">or register with email</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             
@@ -289,6 +346,15 @@ const Register = () => {
           </p>
         </div>
       </div>
+      
+      {/* Make Google button full width */}
+      <style>{`
+        .google-login-wrapper > div,
+        .google-login-wrapper iframe,
+        .google-login-wrapper > div > div {
+          width: 100% !important;
+        }
+      `}</style>
     </div>
   );
 };

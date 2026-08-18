@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { BrandMark } from '../components/BrandMark';
 import toast from 'react-hot-toast';
 import { playSuccessSound } from '../utils/sound';
 import { motion } from 'framer-motion';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,38 +14,57 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showSuccessAnim, setShowSuccessAnim] = useState(false);
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
+  // Shared success handler
+  const handleSuccess = (userData) => {
+    playSuccessSound();
+    toast.success(`Welcome, ${userData.name || 'User'}! 🎉`);
+    setShowSuccessAnim(true);
+    setTimeout(() => {
+      if (userData.role === 'admin') navigate('/admin');
+      else if (userData.role === 'vendor') navigate('/vendor');
+      else if (userData.role === 'delivery') navigate('/delivery');
+      else navigate('/');
+    }, 1500);
+  };
+
+  // Normal email/password login
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
     const result = await login(email, password);
-
     if (result.success && result.user) {
-      playSuccessSound();
-      toast.success(`Welcome back, ${result.user.name || 'User'}!`);
-      
-      // Trigger the transition animation
-      setShowSuccessAnim(true);
-      
-      // Delay navigation to let the animation play
-      setTimeout(() => {
-        if (result.user.role === 'admin') navigate('/admin');
-        else if (result.user.role === 'vendor') navigate('/vendor');
-        else if (result.user.role === 'delivery') navigate('/delivery');
-        else navigate('/');
-      }, 1500);
+      handleSuccess(result.user);
     } else {
       setError(result.error || 'Invalid email or password');
       setIsLoading(false);
     }
   };
 
+  // Google login — credential is the id_token from Google
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setGoogleLoading(true);
+    setError('');
+    const result = await googleLogin(credentialResponse.credential);
+    if (result.success && result.user) {
+      handleSuccess(result.user);
+    } else {
+      setError(result.error || 'Google login failed. Please try again.');
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Google login was cancelled or failed.');
+  };
+
+  // Success animation screen
   if (showSuccessAnim) {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-blue-600 overflow-hidden">
@@ -56,8 +76,8 @@ const Login = () => {
         >
           <BrandMark size="xl" />
         </motion.div>
-        
-        <motion.h1 
+
+        <motion.h1
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
@@ -66,11 +86,10 @@ const Login = () => {
           Logging you in...
         </motion.h1>
 
-        {/* Expanding circle that covers screen to transition */}
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 100 }}
-          transition={{ delay: 1, duration: 0.6, ease: "easeInOut" }}
+          transition={{ delay: 1, duration: 0.6, ease: 'easeInOut' }}
           className="absolute w-10 h-10 bg-gray-50 rounded-full z-[-1]"
         />
       </div>
@@ -79,16 +98,15 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0f1c] relative overflow-hidden">
-      {/* Animated Background Elements */}
+      {/* Animated blobs */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-600/20 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-purple-600/20 blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-[1000px] flex rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-xl border border-white/10 mx-4 z-10">
-        
-        {/* Left Side: Branding / Image (Hidden on mobile) */}
+
+        {/* Left branding panel */}
         <div className="hidden md:flex flex-col justify-between w-1/2 p-12 relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-900 text-white">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1200&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay opacity-40"></div>
-          
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=1200&auto=format&fit=crop')] bg-cover bg-center mix-blend-overlay opacity-40" />
           <div className="relative z-10">
             <Link to="/" className="inline-flex items-center gap-2 mb-2 hover:scale-105 transition-transform">
               <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-lg">
@@ -98,20 +116,20 @@ const Login = () => {
             </Link>
             <p className="text-blue-200 text-sm font-medium tracking-wide">The Premium Grocery Experience</p>
           </div>
-
           <div className="relative z-10">
-            <h2 className="text-4xl font-bold mb-4 leading-tight">Fast delivery.<br/>Fresh products.<br/>Happy you.</h2>
+            <h2 className="text-4xl font-bold mb-4 leading-tight">Fast delivery.<br />Fresh products.<br />Happy you.</h2>
             <p className="text-blue-100/80 text-sm">Join thousands of users enjoying lightning-fast delivery of daily essentials.</p>
           </div>
         </div>
 
-        {/* Right Side: Login Form */}
+        {/* Right form panel */}
         <div className="w-full md:w-1/2 p-8 sm:p-12 bg-white flex flex-col justify-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
           >
+            {/* Mobile logo */}
             <div className="md:hidden flex items-center gap-2 mb-8">
               <BrandMark size="lg" />
               <span className="font-extrabold text-2xl tracking-tight text-gray-900">MERSKO</span>
@@ -120,8 +138,9 @@ const Login = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Welcome Back</h1>
             <p className="text-gray-500 text-sm mb-8 font-medium">Please enter your details to sign in.</p>
 
+            {/* Error message */}
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 mb-6 border border-red-100 shadow-sm"
@@ -131,6 +150,37 @@ const Login = () => {
               </motion.div>
             )}
 
+            {/* ── Google Login ── */}
+            <div className="mb-5">
+              {googleLoading ? (
+                <div className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-500 text-sm font-semibold">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                  Signing in with Google...
+                </div>
+              ) : (
+                <div className="google-login-wrapper">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    theme="outline"
+                    size="large"
+                    shape="rectangular"
+                    logo_alignment="left"
+                    width="400"
+                    text="continue_with"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">or</span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+
+            {/* Email/Password form */}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Email</label>
@@ -182,7 +232,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center items-center gap-2 py-4 px-4 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-600/20 disabled:opacity-70 transition-all shadow-lg shadow-blue-600/30 mt-4 active:scale-[0.98]"
+                className="w-full flex justify-center items-center gap-2 py-4 px-4 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-600/20 disabled:opacity-70 transition-all shadow-lg shadow-blue-600/30 mt-2 active:scale-[0.98]"
               >
                 {isLoading ? (
                   <>
@@ -209,6 +259,15 @@ const Login = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Make Google button full width */}
+      <style>{`
+        .google-login-wrapper > div,
+        .google-login-wrapper iframe,
+        .google-login-wrapper > div > div {
+          width: 100% !important;
+        }
+      `}</style>
     </div>
   );
 };

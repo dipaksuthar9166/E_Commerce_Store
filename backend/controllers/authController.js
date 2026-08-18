@@ -3,6 +3,10 @@ const Shop = require('../models/Shop');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -210,4 +214,63 @@ exports.resetPassword = async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error: error.message });
     }
+};
+
+// @desc    Google OAuth Login / Register
+// @route   POST /api/auth/google
+// @access  Public
+exports.googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ message: 'Google credential is required' });
+    }
+
+    // 1. Verify the Google ID token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
+
+    // 2. Find existing user by googleId or email
+    let user = await User.findOne({ $or: [{ googleId }, { email }] });
+
+    if (user) {
+      // Link googleId to existing email account if not already set
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.avatar = user.avatar || picture;
+        await user.save({ validateBeforeSave: false });
+      }
+    } else {
+      // 3. Create new user (Google-only, no password)
+      user = await User.create({
+        name,
+        email,
+        googleId,
+        avatar: picture,
+        role: 'customer',
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ message: 'Account is inactive. Please contact support.' });
+    }
+
+    // 4. Return JWT (same shape as normal login)
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+      token: generateToken(user._id),
+    });
+
+  } catch (error) {
+    console.error('Google Login Error:', error);
+    res.status(401).json({ message: 'Google authentication failed', error: error.message });
+  }
 };

@@ -13,7 +13,15 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: false, // Optional — Google login users may not have a password
+  },
+  googleId: {
+    type: String,
+    sparse: true,
+    unique: true,
+  },
+  avatar: {
+    type: String, // Profile picture URL (from Google)
   },
   role: {
     type: String,
@@ -63,14 +71,15 @@ const userSchema = new mongoose.Schema({
 // Sparse 2dsphere index — only docs with lastLocation set
 userSchema.index({ lastLocation: '2dsphere' }, { sparse: true });
 
-// Hash password before saving
+// Hash password before saving (skip if no password, e.g. Google login)
 userSchema.pre('save', async function() {
-  if (!this.isModified('password')) return;
+  if (!this.password || !this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 10);
 });
 
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false; // Google-only user
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
