@@ -315,7 +315,7 @@ exports.placeOrder = async (req, res) => {
       if (io) {
         const populatedOrder = await Order.findById(order._id).populate('userId', 'name email phone');
         io.to(`shop_${shopId}`).emit('newOrder', populatedOrder);
-        
+
         // Push notification to Vendor
         const shop = await Shop.findById(shopId).populate('userId');
         if (shop && shop.userId) {
@@ -905,17 +905,17 @@ exports.getOrderTracking = async (req, res) => {
       deliverySlot: order.deliverySlot,
       rider: order.deliveryBoyId
         ? {
-            name: order.deliveryBoyId.name,
-            phone: order.deliveryBoyId.phone || null,
-          }
+          name: order.deliveryBoyId.name,
+          phone: order.deliveryBoyId.phone || null,
+        }
         : null,
       location:
         lat != null && lng != null
           ? {
-              lat,
-              lng,
-              lastUpdated: order.deliveryBoyId?.lastLocation?.lastUpdated || null,
-            }
+            lat,
+            lng,
+            lastUpdated: order.deliveryBoyId?.lastLocation?.lastUpdated || null,
+          }
           : null,
     });
   } catch (error) {
@@ -936,7 +936,7 @@ exports.updateOrderTimeline = async (req, res) => {
     order.status = status;
     order.timeline.push({ status, description });
     await order.save();
-    
+
     const populatedOrder = await loadFullOrder(order._id);
     const io = req.app.get('io');
     emitOrderStatusUpdated(io, order, populatedOrder);
@@ -946,8 +946,8 @@ exports.updateOrderTimeline = async (req, res) => {
     if (user) {
       await sendPushNotification(user, {
         title: 'Order Status Updated',
-        body: \`Your order status is now: \${status}. \${description}\`,
-        url: \`/orders/\${order._id}\`
+        body: `Your order status is now: ${status}. ${description}`,
+        url: `/orders/${order._id}`
       });
     }
 
@@ -992,7 +992,7 @@ exports.verifyDelivery = async (req, res) => {
       await sendPushNotification(user, {
         title: 'Order Delivered! 🎉',
         body: 'Your order has been successfully delivered. Thank you for shopping with MERSKO!',
-        url: \`/orders/\${order._id}\`
+        url: `/orders/${order._id}`
       });
     }
 
@@ -1000,4 +1000,4 @@ exports.verifyDelivery = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-};
+};  
