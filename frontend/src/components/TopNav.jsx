@@ -13,6 +13,9 @@ import {
   MapPin,
   Loader2,
   Globe,
+  Download,
+  X,
+  Smartphone,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -23,6 +26,95 @@ import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-
 import ThemeToggle from './ThemeToggle';
 import { Brand, BrandMark } from './BrandMark';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+
+/** ── How-to-install modal ── */
+function InstallModal({ onClose }) {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isChrome = /chrome/i.test(navigator.userAgent) && !/edg/i.test(navigator.userAgent);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4 pb-4 sm:pb-0"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ y: 60, opacity: 0, scale: 0.97 }}
+          animate={{ y: 0,  opacity: 1, scale: 1   }}
+          exit={{ y: 60, opacity: 0 }}
+          transition={{ type: 'spring', damping: 22, stiffness: 280 }}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
+                <Smartphone className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white text-sm">Install MERSKO App</p>
+                <p className="text-xs text-slate-500">Fast, offline-ready experience</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <X className="w-4 h-4 text-slate-500" />
+            </button>
+          </div>
+
+          {/* Steps */}
+          <div className="px-5 py-4 space-y-3">
+            {isIOS ? (
+              <>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">iOS / Safari Steps</p>
+                {[
+                  { n: '1', text: 'Tap the Share button (box with arrow) in Safari' },
+                  { n: '2', text: 'Scroll down and tap “Add to Home Screen”' },
+                  { n: '3', text: 'Tap “Add” — app appears on your home screen!' },
+                ].map((s) => (
+                  <div key={s.n} className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-black flex items-center justify-center shrink-0">{s.n}</span>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-snug">{s.text}</p>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  {isChrome ? 'Chrome' : 'Browser'} Steps
+                </p>
+                {[
+                  { n: '1', text: 'Click the install icon (⤓) in the address bar (top-right)' },
+                  { n: '2', text: 'Click “Install” in the popup' },
+                  { n: '3', text: 'App opens like a native app — fast & offline!' },
+                ].map((s) => (
+                  <div key={s.n} className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-black flex items-center justify-center shrink-0">{s.n}</span>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-snug">{s.text}</p>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-5 pb-5">
+            <button
+              onClick={onClose}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold shadow-md hover:shadow-blue-500/30 transition-shadow"
+            >
+              Got it!
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 
 const LocationButton = ({ compact = false }) => {
   const { shortAddress, address, loading, openPicker, error } = useDeliveryLocation();
@@ -226,6 +318,15 @@ const TopNav = ({ toggleSidebar }) => {
   const cartCount = getCartCount();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInstallModal, setShowInstallModal] = useState(false);
+
+  const handleInstallClick = () => {
+    if (isInstallable) {
+      installPWA();
+    } else {
+      setShowInstallModal(true);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -235,6 +336,7 @@ const TopNav = ({ toggleSidebar }) => {
   };
 
   return (
+    <>
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
       {/* Promo strip — solid, not rainbow */}
       <div className="hidden sm:block bg-slate-900 text-slate-200 text-center text-[11px] sm:text-xs font-medium py-1.5 tracking-wide">
@@ -276,26 +378,23 @@ const TopNav = ({ toggleSidebar }) => {
           
           <ThemeToggle variant="light" />
 
-          {/* ── Install App button (desktop) ── */}
-          {isInstallable && (
-            <motion.button
-              onClick={installPWA}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow"
-              title="Install MERSKO App"
-            >
-              {/* Pulsing green dot */}
+          {/* ── Install App button (desktop) — always visible ── */}
+          <motion.button
+            onClick={handleInstallClick}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow"
+            title="Install MERSKO App"
+          >
+            {isInstallable && (
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
               </span>
-              <Download className="w-3.5 h-3.5" />
-              Install App
-            </motion.button>
-          )}
+            )}
+            <Download className="w-3.5 h-3.5" />
+            Install App
+          </motion.button>
 
           <AccountMenu variant="desktop" />
 
@@ -381,18 +480,18 @@ const TopNav = ({ toggleSidebar }) => {
               {lang.toUpperCase()}
             </button>
             <ThemeToggle variant="ghost" />
-            {/* ── Install App button (mobile) ── */}
-            {isInstallable && (
-              <motion.button
-                onClick={installPWA}
-                whileTap={{ scale: 0.9 }}
-                className="p-2 rounded-xl bg-blue-600 text-white relative"
-                title="Install App"
-              >
-                <Download className="w-4.5 h-4.5 w-4 h-4" />
+            {/* ── Install App button (mobile) — always visible ── */}
+            <motion.button
+              onClick={handleInstallClick}
+              whileTap={{ scale: 0.9 }}
+              className="p-2 rounded-xl bg-blue-600 text-white relative"
+              title="Install App"
+            >
+              <Download className="w-4 h-4" />
+              {isInstallable && (
                 <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" />
-              </motion.button>
-            )}
+              )}
+            </motion.button>
             <AccountMenu variant="mobile" />
           </div>
         </div>
@@ -411,6 +510,10 @@ const TopNav = ({ toggleSidebar }) => {
         </form>
       </div>
     </header>
+
+    {/* ── Install How-To Modal ── */}
+    {showInstallModal && <InstallModal onClose={() => setShowInstallModal(false)} />}
+    </>
   );
 };
 
