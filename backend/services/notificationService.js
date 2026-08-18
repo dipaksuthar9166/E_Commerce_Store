@@ -1,10 +1,17 @@
 const webpush = require('web-push');
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT || 'mailto:admin@mersko.com',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+const VAPID_CONFIGURED =
+  process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY;
+
+if (VAPID_CONFIGURED) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || 'mailto:admin@mersko.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn('[PushNotification] VAPID keys not set — push notifications disabled.');
+}
 
 /**
  * Send a push notification to a user's registered devices.
@@ -12,6 +19,7 @@ webpush.setVapidDetails(
  * @param {Object} payload - Notification data (title, body, url, icon, etc.)
  */
 exports.sendPushNotification = async (user, payload) => {
+  if (!VAPID_CONFIGURED) return;
   if (!user || !user.pushSubscriptions || user.pushSubscriptions.length === 0) {
     return;
   }
