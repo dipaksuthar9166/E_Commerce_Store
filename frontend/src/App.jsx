@@ -1,4 +1,5 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useState } from "react";
+import SplashScreen from "./components/SplashScreen";
 import {
   BrowserRouter,
   Routes,
@@ -117,13 +118,167 @@ const DeliveryProfile = lazy(() =>
   import("./pages/delivery/DeliveryProfile")
 );
 
+
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-[40vh]">
-      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9000,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#000",
+        gap: 28,
+      }}
+    >
+      {/* Subtle grid */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage:
+            "linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px)," +
+            "linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px)",
+          backgroundSize: "55px 55px",
+        }}
+      />
+
+      {/* Rotating ring */}
+      <div style={{ position: "relative", width: 80, height: 80 }}>
+        {/* Outer glow ring */}
+        <div
+          style={{
+            position: "absolute",
+            inset: -8,
+            borderRadius: "50%",
+            border: "1px solid rgba(59,130,246,0.12)",
+          }}
+        />
+        {/* Spinner arc */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: "50%",
+            border: "2px solid transparent",
+            borderTopColor: "#3b82f6",
+            borderRightColor: "rgba(59,130,246,0.3)",
+            boxShadow: "0 0 16px rgba(59,130,246,0.5)",
+            animation: "plSpin 0.9s linear infinite",
+          }}
+        />
+        {/* Inner reverse arc */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 10,
+            borderRadius: "50%",
+            border: "2px solid transparent",
+            borderBottomColor: "#f97316",
+            borderLeftColor: "rgba(249,115,22,0.3)",
+            boxShadow: "0 0 12px rgba(249,115,22,0.4)",
+            animation: "plSpin 1.4s linear infinite reverse",
+          }}
+        />
+        {/* Center M/ mark */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.3rem",
+            fontWeight: 900,
+            letterSpacing: "-0.05em",
+            lineHeight: 1,
+          }}
+        >
+          <span style={{ color: "#3b82f6" }}>M</span>
+          <span style={{ color: "#f97316", marginLeft: "-2px" }}>/</span>
+        </div>
+      </div>
+
+      {/* 3 staggered dots */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        {[
+          { color: "#3b82f6", glow: "rgba(59,130,246,0.8)",  size: 7,  delay: "0s"     },
+          { color: "#ffffff", glow: "rgba(255,255,255,0.6)", size: 10, delay: "0.22s"  },
+          { color: "#f97316", glow: "rgba(249,115,22,0.8)",  size: 7,  delay: "0.44s"  },
+        ].map((d, i) => (
+          <div
+            key={i}
+            style={{
+              width:  d.size,
+              height: d.size,
+              borderRadius: "50%",
+              background: d.color,
+              boxShadow: `0 0 10px ${d.glow}`,
+              animation: `plDot 1.4s ease-in-out ${d.delay} infinite`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div
+        style={{
+          width: 140,
+          height: 3,
+          background: "rgba(255,255,255,0.07)",
+          borderRadius: 99,
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 99,
+            background: "linear-gradient(90deg, #3b82f6, #f97316)",
+            boxShadow: "0 0 10px rgba(59,130,246,0.6)",
+            transformOrigin: "left center",
+            animation: "plBar 2s cubic-bezier(0.4,0,0.2,1) infinite",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 99,
+            background:
+              "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
+            animation: "plShimmer 2s ease-in-out infinite",
+          }}
+        />
+      </div>
+
+      <style>{`
+        @keyframes plSpin    { to { transform: rotate(360deg); } }
+        @keyframes plDot {
+          0%,100% { transform: translateY(0)   scale(0.85); opacity: 0.4; }
+          45%      { transform: translateY(-7px) scale(1.15); opacity: 1;   }
+        }
+        @keyframes plBar {
+          0%   { transform: scaleX(0); opacity: 0.9; }
+          70%  { transform: scaleX(1); opacity: 1;   }
+          85%  { transform: scaleX(1); opacity: 0.6; }
+          100% { transform: scaleX(0); opacity: 0;   }
+        }
+        @keyframes plShimmer {
+          0%   { transform: translateX(-100%); }
+          60%  { transform: translateX(250%);  }
+          100% { transform: translateX(250%);  }
+        }
+      `}</style>
     </div>
   );
 }
+
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -236,8 +391,13 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <BrowserRouter>
+      {/* App launch splash screen */}
+      {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
+
       <LanguageProvider>
         <AuthProvider>
         <SocketProvider>
