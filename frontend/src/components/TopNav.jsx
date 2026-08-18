@@ -22,6 +22,7 @@ import { useDeliveryLocation } from '../contexts/LocationContext';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import ThemeToggle from './ThemeToggle';
 import { Brand, BrandMark } from './BrandMark';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 const LocationButton = ({ compact = false }) => {
   const { shortAddress, address, loading, openPicker, error } = useDeliveryLocation();
@@ -221,6 +222,7 @@ const AccountMenu = ({ variant = 'desktop' }) => {
 const TopNav = ({ toggleSidebar }) => {
   const { getCartCount } = useCart();
   const { t, lang, toggleLanguage } = useLanguage();
+  const { isInstallable, installPWA } = usePWAInstall();
   const cartCount = getCartCount();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -273,6 +275,27 @@ const TopNav = ({ toggleSidebar }) => {
           </button>
           
           <ThemeToggle variant="light" />
+
+          {/* ── Install App button (desktop) ── */}
+          {isInstallable && (
+            <motion.button
+              onClick={installPWA}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md shadow-blue-500/25 hover:shadow-blue-500/40 transition-shadow"
+              title="Install MERSKO App"
+            >
+              {/* Pulsing green dot */}
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
+              </span>
+              <Download className="w-3.5 h-3.5" />
+              Install App
+            </motion.button>
+          )}
 
           <AccountMenu variant="desktop" />
 
@@ -358,6 +381,18 @@ const TopNav = ({ toggleSidebar }) => {
               {lang.toUpperCase()}
             </button>
             <ThemeToggle variant="ghost" />
+            {/* ── Install App button (mobile) ── */}
+            {isInstallable && (
+              <motion.button
+                onClick={installPWA}
+                whileTap={{ scale: 0.9 }}
+                className="p-2 rounded-xl bg-blue-600 text-white relative"
+                title="Install App"
+              >
+                <Download className="w-4.5 h-4.5 w-4 h-4" />
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" />
+              </motion.button>
+            )}
             <AccountMenu variant="mobile" />
           </div>
         </div>
