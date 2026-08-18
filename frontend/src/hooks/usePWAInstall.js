@@ -1,42 +1,57 @@
 import { useState, useEffect } from 'react';
 
 export const usePWAInstall = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isInstallable, setIsInstallable] = useState(false);
+  // Check if the prompt was already captured before React mounted
+  const [deferredPrompt, setDeferredPrompt] = useState(
+    () => window._pwaPrompt || null
+  );
+  const [isInstallable, setIsInstallable] = useState(
+    () => !!window._pwaPrompt
+  );
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
-      // Prevent the mini-infobar from appearing on mobile
+    // If already captured, nothing to do
+    if (window._pwaPrompt) {
+      setDeferredPrompt(window._pwaPrompt);
+      setIsInstallable(true);
+    }
+
+    // Listen for future fires (e.g. if hook mounts before the event)
+    const onPromptReady = () => {
+      if (window._pwaPrompt) {
+        setDeferredPrompt(window._pwaPrompt);
+        setIsInstallable(true);
+      }
+    };
+
+    const onPrompt = (e) => {
       e.preventDefault();
-      // Stash the event so it can be triggered later.
+      window._pwaPrompt = e;
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
       setIsInstallable(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-ready', onPromptReady);
+    window.addEventListener('beforeinstallprompt', onPrompt);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-ready', onPromptReady);
+      window.removeEventListener('beforeinstallprompt', onPrompt);
     };
   }, []);
 
   const installPWA = async () => {
-    if (!deferredPrompt) return;
-    
-    // Show the install prompt
-    deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
-    }
-    
-    // We've used the prompt, and can't use it again, throw it away
+    const prompt = deferredPrompt || window._pwaPrompt;
+    if (!prompt) return;
+
+    // Show the native install prompt
+    prompt.prompt();
+
+    const { outcome } = await prompt.userChoice;
+    console.log('[PWA] Install outcome:', outcome);
+
+    // Clean up — prompt can only be used once
+    window._pwaPrompt = null;
     setDeferredPrompt(null);
     setIsInstallable(false);
   };

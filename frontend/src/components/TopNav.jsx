@@ -321,9 +321,11 @@ const TopNav = ({ toggleSidebar }) => {
   const [showInstallModal, setShowInstallModal] = useState(false);
 
   const handleInstallClick = () => {
-    if (isInstallable) {
+    // Check both React state and early-captured window prompt
+    if (isInstallable || window._pwaPrompt) {
       installPWA();
     } else {
+      // Truly not installable — show how-to guide
       setShowInstallModal(true);
     }
   };

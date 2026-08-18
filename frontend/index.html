@@ -81,6 +81,14 @@
         } catch (e) {}
       })();
     </script>
+    <!-- Capture PWA install prompt ASAP — before React boots -->
+    <script>
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window._pwaPrompt = e;
+        window.dispatchEvent(new Event('pwa-prompt-ready'));
+      });
+    </script>
   </head>
   <body style="margin:0;background:#0f172a;">
     <div id="root"></div>
