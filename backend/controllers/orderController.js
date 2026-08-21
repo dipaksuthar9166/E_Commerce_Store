@@ -666,50 +666,222 @@ exports.getInvoice = async (req, res) => {
 
     // HTML printable invoice
     if (req.query.format === 'html') {
-      const rows = lineItems.map((i) => `
+      const isPaid = order.paymentStatus === 'paid' || order.status === 'delivered' || order.paymentMethod === 'cod';
+      const isDelivered = order.status === 'delivered';
+      const isCancelled = order.status === 'cancelled';
+      const statusColor = {
+        pending: '#f59e0b', accepted: '#3b82f6', packing: '#06b6d4',
+        ready_for_pickup: '#0ea5e9', out_for_delivery: '#8b5cf6',
+        delivered: '#10b981', cancelled: '#ef4444',
+      }[order.status] || '#6b7280';
+      const statusLabel = {
+        pending: 'Pending', accepted: 'Accepted', packing: 'Packing',
+        ready_for_pickup: 'Shipped', out_for_delivery: 'Out for Delivery',
+        delivered: 'Delivered ✓', cancelled: 'Cancelled',
+      }[order.status] || order.status;
+      const payLabel = {
+        cod: 'Cash on Delivery', upi: 'UPI', card: 'Credit / Debit Card',
+        netbanking: 'Net Banking', emi: 'EMI', pay_later: 'Pay Later',
+      }[order.paymentMethod] || (order.paymentMethod || '').toUpperCase();
+      const savings = invoice.breakup.savings || invoice.breakup.discount || 0;
+      const watermarkText = isCancelled ? 'CANCELLED' : (isPaid ? 'PAID' : 'UNPAID');
+      const watermarkColor = isCancelled ? 'rgba(239,68,68,0.07)' : (isPaid ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)');
+      const rows = lineItems.map((item) => `
         <tr>
-          <td>${i.name}${i.size ? ` (${i.size})` : ''}${i.color ? ` / ${i.color}` : ''}</td>
-          <td style="text-align:center">${i.quantity}</td>
-          <td style="text-align:right">₹${i.unitPrice}</td>
-          <td style="text-align:right">₹${i.lineTotal}</td>
+          <td>
+            <div style="font-weight:600;color:#0f172a;font-size:14px">${item.name}</div>
+            <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+              ${item.size ? `<span style="font-size:10px;font-weight:600;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:20px">Size: ${item.size}</span>` : ''}
+              ${item.color ? `<span style="font-size:10px;font-weight:600;background:#f3e8ff;color:#7c3aed;padding:2px 8px;border-radius:20px">Color: ${item.color}</span>` : ''}
+            </div>
+          </td>
+          <td style="text-align:center;font-size:15px;font-weight:700;color:#334155">${item.quantity}</td>
+          <td style="text-align:right;color:#64748b;font-size:13px">&#8377;${Number(item.unitPrice).toFixed(2)}</td>
+          <td style="text-align:right;font-weight:800;font-size:15px;color:#1e40af">&#8377;${Number(item.lineTotal).toFixed(2)}</td>
         </tr>`).join('');
-
       const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>${invoiceNo}</title>
-<style>
-  body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;color:#111;padding:0 16px}
-  h1{font-size:22px;margin:0} .muted{color:#666;font-size:13px}
-  table{width:100%;border-collapse:collapse;margin-top:20px}
-  th,td{border-bottom:1px solid #eee;padding:10px 6px;font-size:14px}
-  th{text-align:left;background:#f8fafc}
-  .totals{margin-top:16px;margin-left:auto;width:280px}
-  .totals div{display:flex;justify-content:space-between;padding:4px 0;font-size:14px}
-  .totals .grand{font-weight:800;font-size:16px;border-top:2px solid #111;margin-top:8px;padding-top:8px}
-  @media print{button{display:none}}
-</style></head><body>
-  <button onclick="window.print()" style="padding:8px 14px;margin-bottom:16px;cursor:pointer">Print / Save PDF</button>
-  <h1>Tax Invoice</h1>
-  <p class="muted">${invoiceNo} · Order #${String(order._id).slice(-8).toUpperCase()}</p>
-  <p class="muted">Date: ${new Date(order.createdAt).toLocaleString()}</p>
-  <div style="display:flex;justify-content:space-between;gap:24px;margin-top:20px">
-    <div><strong>Bill To</strong><br/>${invoice.customer.name}<br/>${invoice.customer.phone || ''}<br/>${invoice.deliveryAddress || ''}</div>
-    <div style="text-align:right"><strong>Sold By</strong><br/>${invoice.shop.name}<br/>${invoice.shop.address}</div>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>MERSKO &bull; ${invoiceNo}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',system-ui,sans-serif;background:#e2e8f0;color:#0f172a;min-height:100vh;padding:28px 16px}
+    .wrap{max-width:800px;margin:0 auto}
+    .action-bar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px}
+    .btn{padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s}
+    .btn-ghost{background:#fff;color:#475569;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+    .btn-primary{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;box-shadow:0 4px 14px rgba(37,99,235,.3)}
+    .card{background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 4px 6px rgba(15,23,42,.04),0 24px 60px rgba(15,23,42,.12);position:relative}
+    .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:110px;font-weight:900;letter-spacing:10px;color:${watermarkColor};pointer-events:none;user-select:none;white-space:nowrap;z-index:0;font-style:italic}
+    .header{background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 50%,#6d28d9 100%);padding:38px 44px 42px;position:relative;overflow:hidden;z-index:1}
+    .header::before{content:'';position:absolute;width:340px;height:340px;background:rgba(255,255,255,.06);border-radius:50%;top:-120px;right:-80px;pointer-events:none}
+    .header::after{content:'';position:absolute;width:200px;height:200px;background:rgba(255,255,255,.04);border-radius:50%;bottom:-80px;left:80px;pointer-events:none}
+    .hinner{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap}
+    .brand{font-size:32px;font-weight:900;color:#fff;letter-spacing:-1.5px;line-height:1}
+    .brand em{color:rgba(255,255,255,.4);font-style:normal}
+    .brand-sub{font-size:11px;font-weight:500;color:rgba(255,255,255,.5);margin-top:4px;letter-spacing:.3px}
+    .inv-right{text-align:right}
+    .inv-cap{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,.5);margin-bottom:3px}
+    .inv-num{font-size:26px;font-weight:900;color:#fff;letter-spacing:-.5px;line-height:1}
+    .inv-meta{font-size:12px;color:rgba(255,255,255,.5);margin-top:5px}
+    .status-pill{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 18px;border-radius:100px;background:rgba(255,255,255,.15);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);font-size:12px;font-weight:700;color:#fff;letter-spacing:.3px}
+    .sdot{width:8px;height:8px;border-radius:50%;background:${statusColor};box-shadow:0 0 0 3px rgba(255,255,255,.2);flex-shrink:0}
+    .savings{background:linear-gradient(90deg,#065f46,#047857,#065f46);padding:13px 44px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+    .sav-text{font-size:13px;font-weight:600;color:rgba(255,255,255,.8)}
+    .sav-amt{font-size:20px;font-weight:900;color:#6ee7b7;letter-spacing:-.5px}
+    .body{padding:40px 44px;position:relative;z-index:1}
+    .parties{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:36px}
+    .party{border-radius:14px;padding:20px 22px;border:1.5px solid}
+    .bill{background:#eff6ff;border-color:#bfdbfe}
+    .sold{background:#faf5ff;border-color:#e9d5ff}
+    .ptag{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+    .bill .ptag{color:#1d4ed8}
+    .sold .ptag{color:#6d28d9}
+    .ptag::before{content:'';width:3px;height:13px;border-radius:2px;display:inline-block;flex-shrink:0}
+    .bill .ptag::before{background:#2563eb}
+    .sold .ptag::before{background:#7c3aed}
+    .pname{font-size:16px;font-weight:800;color:#0f172a;margin-bottom:6px}
+    .pdetail{font-size:12.5px;color:#64748b;line-height:1.7}
+    .sec{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#94a3b8;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .sec::after{content:'';flex:1;height:1px;background:linear-gradient(to right,#e2e8f0,transparent)}
+    table{width:100%;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:28px}
+    thead tr{background:linear-gradient(135deg,#1e3a8a,#3730a3)}
+    thead th{padding:13px 18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.85)}
+    tbody tr:nth-child(odd){background:#fff}
+    tbody tr:nth-child(even){background:#f8faff}
+    tbody tr{border-bottom:1px solid #f1f5f9}
+    tbody tr:last-child{border-bottom:none}
+    td{padding:14px 18px;vertical-align:top}
+    .swrap{display:flex;justify-content:flex-end;margin-bottom:30px}
+    .summary{width:310px;border-radius:14px;overflow:hidden;border:1.5px solid #e2e8f0}
+    .srow{display:flex;justify-content:space-between;padding:11px 18px;font-size:13.5px;border-bottom:1px solid #f8fafc}
+    .srow:last-child{border-bottom:none}
+    .slabel{color:#64748b;font-weight:500}
+    .sval{font-weight:600;color:#0f172a}
+    .srow.disc .sval{color:#10b981;font-weight:700}
+    .srow.free .sval{color:#10b981;font-weight:700}
+    .grand{background:linear-gradient(135deg,#1e3a8a,#4338ca);padding:17px 18px;display:flex;justify-content:space-between;align-items:center}
+    .gl{color:rgba(255,255,255,.7);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+    .gv{color:#fff;font-size:25px;font-weight:900;letter-spacing:-.8px}
+    .chips{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:30px}
+    .chip{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:13px 16px}
+    .clabel{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;margin-bottom:5px}
+    .cval{font-size:14px;font-weight:700;color:#0f172a}
+    .guide{background:linear-gradient(135deg,#fffbeb,#fefce8);border:1.5px solid #fde68a;border-radius:14px;padding:20px 22px}
+    .gtitle{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#92400e;margin-bottom:12px}
+    .glist{display:flex;flex-direction:column;gap:8px}
+    .gi{display:flex;gap:10px;font-size:12.5px;color:#78350f;line-height:1.55}
+    .garr{color:#f59e0b;font-weight:900;flex-shrink:0}
+    .footer{background:linear-gradient(135deg,#0c1222,#162032);padding:30px 44px;text-align:center}
+    .flogo{font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px;margin-bottom:3px}
+    .flogo em{color:rgba(255,255,255,.35);font-style:normal}
+    .ftag{font-size:11.5px;color:rgba(255,255,255,.38);margin-bottom:18px}
+    .fline{height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.1),transparent);margin-bottom:14px}
+    .fnote{font-size:11.5px;color:rgba(255,255,255,.32);line-height:1.8}
+    .fnote a{color:rgba(255,255,255,.5);text-decoration:none}
+    @media print{
+      body{background:#fff;padding:0}
+      .action-bar{display:none}
+      .card{box-shadow:none;border-radius:0}
+      .watermark{font-size:150px}
+    }
+    @media(max-width:580px){
+      .parties,.chips{grid-template-columns:1fr}
+      .summary{width:100%}
+      .header,.body,.footer{padding-left:22px;padding-right:22px}
+      .savings{padding-left:22px;padding-right:22px}
+      .hinner{flex-direction:column}
+      .inv-right{text-align:left}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="action-bar">
+    <button class="btn btn-ghost" onclick="window.close()">&#x2715;&nbsp; Close</button>
+    <button class="btn btn-primary" onclick="window.print()">&#128424;&nbsp; Print / Save PDF</button>
   </div>
-  <table>
-    <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Amount</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <div class="totals">
-    <div><span>Subtotal</span><span>₹${invoice.breakup.subtotal}</span></div>
-    <div><span>Discount</span><span>-₹${invoice.breakup.discount}</span></div>
-    <div><span>Delivery</span><span>₹${invoice.breakup.deliveryFee}</span></div>
-    <div><span>Platform fee</span><span>₹${invoice.breakup.platformFee}</span></div>
-    <div><span>GST (5%)</span><span>₹${invoice.breakup.tax}</span></div>
-    <div class="grand"><span>Total</span><span>₹${invoice.breakup.total}</span></div>
+  <div class="card">
+    <div class="watermark">${watermarkText}</div>
+    <div class="header">
+      <div class="hinner">
+        <div>
+          <div class="brand">MERSKO<em>.</em></div>
+          <div class="brand-sub">Your Trusted Local Shopping Partner</div>
+          <div class="status-pill"><div class="sdot"></div>${statusLabel}</div>
+        </div>
+        <div class="inv-right">
+          <div class="inv-cap">Tax Invoice</div>
+          <div class="inv-num">${invoiceNo}</div>
+          <div class="inv-meta">Order #${String(order._id).slice(-8).toUpperCase()}</div>
+          <div class="inv-meta">${new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
+    </div>
+    ${savings > 0 ? `<div class="savings"><span class="sav-text">&#127881; You saved on this order!</span><span class="sav-amt">&#8722; &#8377;${Number(savings).toFixed(2)}</span></div>` : ''}
+    <div class="body">
+      <div class="parties">
+        <div class="party bill">
+          <div class="ptag">Bill To</div>
+          <div class="pname">${invoice.customer.name}</div>
+          <div class="pdetail">${invoice.customer.email ? invoice.customer.email + '<br>' : ''}${invoice.customer.phone ? '&#128222; ' + invoice.customer.phone + '<br>' : ''}${invoice.deliveryAddress ? '&#128205; ' + invoice.deliveryAddress : ''}</div>
+        </div>
+        <div class="party sold">
+          <div class="ptag">Sold By</div>
+          <div class="pname">${invoice.shop.name}</div>
+          <div class="pdetail">${invoice.shop.address ? '&#128205; ' + invoice.shop.address : 'MERSKO Platform Seller'}</div>
+        </div>
+      </div>
+      <div class="sec">Order Items</div>
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Item Description</th>
+          <th style="text-align:center">Qty</th>
+          <th style="text-align:right">Unit Price</th>
+          <th style="text-align:right">Amount</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="swrap">
+        <div class="summary">
+          <div class="srow"><span class="slabel">Subtotal</span><span class="sval">&#8377;${Number(invoice.breakup.subtotal).toFixed(2)}</span></div>
+          ${invoice.breakup.discount > 0 ? `<div class="srow disc"><span class="slabel">Discount${invoice.couponCode ? ' (' + invoice.couponCode + ')' : ''}</span><span class="sval">&#8722; &#8377;${Number(invoice.breakup.discount).toFixed(2)}</span></div>` : ''}
+          <div class="srow${invoice.breakup.deliveryFee <= 0 ? ' free' : ''}"><span class="slabel">Delivery Fee</span><span class="sval">${invoice.breakup.deliveryFee > 0 ? '&#8377;' + Number(invoice.breakup.deliveryFee).toFixed(2) : 'FREE'}</span></div>
+          ${invoice.breakup.platformFee > 0 ? `<div class="srow"><span class="slabel">Platform Fee</span><span class="sval">&#8377;${Number(invoice.breakup.platformFee).toFixed(2)}</span></div>` : ''}
+          <div class="srow"><span class="slabel">GST (5%)</span><span class="sval">&#8377;${Number(invoice.breakup.tax).toFixed(2)}</span></div>
+          <div class="grand"><span class="gl">Total Payable</span><span class="gv">&#8377;${Number(invoice.breakup.total).toFixed(2)}</span></div>
+        </div>
+      </div>
+      <div class="sec">Payment Details</div>
+      <div class="chips">
+        <div class="chip"><div class="clabel">Payment Method</div><div class="cval">&#128179; ${payLabel}</div></div>
+        <div class="chip"><div class="clabel">Payment Status</div><div class="cval" style="color:${isPaid ? '#10b981' : '#f59e0b'}">${isPaid ? '&#9989; Paid' : '&#8987; Pending'}</div></div>
+        <div class="chip"><div class="clabel">Invoice Date</div><div class="cval">&#128197; ${new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div></div>
+        <div class="chip"><div class="clabel">Delivery Status</div><div class="cval" style="color:${statusColor}">&#9679; ${statusLabel}</div></div>
+      </div>
+      <div class="guide">
+        <div class="gtitle">&#128203; Important Guidelines</div>
+        <div class="glist">
+          <div class="gi"><span class="garr">&#8594;</span><span>Computer-generated invoice. No physical signature required.</span></div>
+          <div class="gi"><span class="garr">&#8594;</span><span>Return / exchange within <strong>7 days</strong> of delivery via MERSKO app.</span></div>
+          <div class="gi"><span class="garr">&#8594;</span><span>Refund queries: <strong>support@mersko.app</strong> &mdash; quote Invoice No.</span></div>
+          <div class="gi"><span class="garr">&#8594;</span><span>GST included as per applicable rates. Keep for warranty claims.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="flogo">MERSKO<em>.</em></div>
+      <div class="ftag">Your Trusted Local Shopping Partner</div>
+      <div class="fline"></div>
+      <div class="fnote">Thank you for shopping with MERSKO! &#128204;<br/><a href="mailto:support@mersko.app">support@mersko.app</a> &nbsp;|&nbsp; mersko.app<br/>Auto-generated &mdash; no stamp or signature required.</div>
+    </div>
   </div>
-  <p class="muted" style="margin-top:28px">Payment: ${invoice.paymentMethod.toUpperCase()} · Status: ${invoice.paymentStatus}</p>
-  <p class="muted">Thank you for shopping with MERSKO.</p>
-</body></html>`;
+</div>
+</body>
+</html>`;
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.send(html);
@@ -819,14 +991,14 @@ exports.submitDeliveryFeedback = async (req, res) => {
     };
     order.timeline.push({
       status: 'feedback_submitted',
-      description: `Delivery rated ${rating}/5`,
-    });
-    await order.save();
+      description: `Delivery rated ${ rating }/5`,
+  });
+  await order.save();
 
-    res.json({ message: 'Thanks for your feedback!', order: await loadFullOrder(order._id) });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+  res.json({ message: 'Thanks for your feedback!', order: await loadFullOrder(order._id) });
+} catch (error) {
+  res.status(500).json({ message: 'Server error', error: error.message });
+}
 };
 
 // @desc    Raise order-specific support ticket

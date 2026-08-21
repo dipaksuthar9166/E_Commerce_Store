@@ -12,6 +12,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PromoBannerSlider from '../components/PromoBannerSlider';
 import ProductCard from '../components/ProductCard';
+import StaticMap from '../components/StaticMap';
+
 import usePublicCategories from '../hooks/usePublicCategories';
 import api from '../api/axios';
 import { getProductImage } from '../utils/productImage';
@@ -309,6 +311,21 @@ const Home = () => {
             ))}
           </motion.div>
         )}
+      </section>
+
+      {/* Store Location Map */}
+      <section className="mb-8">
+        <div className="mb-4">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+            Our Store Location
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Visit us at our physical store</p>
+        </div>
+        <StaticMap 
+          position={{ lat: 28.6139, lng: 77.2090 }} 
+          popupText="MERSKO Main Store, New Delhi" 
+          height="300px" 
+        />
       </section>
 
       {/* CTA banner — solid blue, no multi-color gradient */}

@@ -111,7 +111,7 @@ const Modal = ({ title, onClose, children, wide }) => (
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
   >
     <button type="button" className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} aria-label="Close" />
     <motion.div 
@@ -1097,38 +1097,101 @@ const Orders = () => {
 
         {modal?.type === 'return' && (
           <Modal title="Return / Exchange" onClose={() => setModal(null)}>
-            <div className="flex gap-2 mb-3">
-              {['return', 'exchange'].map((t) => (
-                <button
-                  key={t}
+            {/* Type selector */}
+            <div className="flex gap-2 mb-4">
+              {[
+                { key: 'return', label: '↩ Return', desc: 'Get a refund', color: 'rose' },
+                { key: 'exchange', label: '🔄 Exchange', desc: 'Replace item', color: 'indigo' },
+              ].map(({ key, label, desc, color }) => (
+                <motion.button
+                  key={key}
                   type="button"
-                  onClick={() => setForm({ ...form, type: t })}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border capitalize ${
-                    form.type === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200'
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setForm({ ...form, type: key, reason: '' })}
+                  className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all duration-200 flex flex-col items-center gap-0.5 ${
+                    form.type === key
+                      ? color === 'rose'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-200'
+                        : 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  {t}
+                  <span className="text-base leading-none">{label}</span>
+                  <span className={`text-[10px] font-normal mt-0.5 ${form.type === key ? 'text-white/80' : 'text-gray-400'}`}>
+                    {desc}
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Contextual info banner */}
+            <motion.div
+              key={form.type}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className={`rounded-xl p-3 mb-3 text-xs font-medium flex items-start gap-2 ${
+                form.type === 'return'
+                  ? 'bg-rose-50 border border-rose-100 text-rose-700'
+                  : 'bg-indigo-50 border border-indigo-100 text-indigo-700'
+              }`}
+            >
+              <span className="text-base leading-none mt-0.5">{form.type === 'return' ? '💰' : '📦'}</span>
+              <span>
+                {form.type === 'return'
+                  ? 'A refund will be initiated to your original payment method within 3–5 business days after the item is picked up.'
+                  : 'A replacement item will be shipped once we receive the original item back. Same model / size only.'}
+              </span>
+            </motion.div>
+
+            {/* Reason quick-select chips */}
+            <p className="text-xs font-bold text-gray-500 mb-2">Reason</p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {(form.type === 'return'
+                ? ['Defective / damaged', 'Wrong item received', 'Not as described', 'Changed my mind']
+                : ['Wrong size', 'Wrong color', 'Defective item', 'Different model wanted']
+              ).map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  onClick={() => setForm({ ...form, reason })}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                    form.reason === reason
+                      ? form.type === 'return'
+                        ? 'bg-rose-100 border-rose-300 text-rose-700'
+                        : 'bg-indigo-100 border-indigo-300 text-indigo-700'
+                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {reason}
                 </button>
               ))}
             </div>
+
             <textarea
               value={form.reason || ''}
               onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              placeholder="Reason (defective, wrong item, not as described…)"
-              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none"
+              placeholder={form.type === 'return' ? 'Describe the issue in detail…' : 'What do you want exchanged and why?'}
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
               rows={3}
               required
             />
-            <button
+            <motion.button
               type="button"
+              whileTap={{ scale: 0.98 }}
               onClick={submitReturn}
               disabled={submitting}
-              className="w-full py-2.5 rounded-xl bg-orange-600 text-white font-bold text-sm disabled:opacity-60"
+              className={`w-full py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60 transition-colors ${
+                form.type === 'return'
+                  ? 'bg-rose-600 hover:bg-rose-700'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
             >
               {submitting ? 'Submitting…' : `Submit ${form.type} request`}
-            </button>
+            </motion.button>
           </Modal>
         )}
+
 
         {modal?.type === 'feedback' && (
           <Modal title="Rate delivery experience" onClose={() => setModal(null)}>

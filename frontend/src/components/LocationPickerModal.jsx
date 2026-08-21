@@ -1,37 +1,30 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GoogleMap, Marker } from '@react-google-maps/api';
-import {
-  X,
-  MapPin,
-  Crosshair,
-  Search,
-  Loader2,
-  Check,
-  Navigation,
-  AlertTriangle,
-  ExternalLink,
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { X, MapPin, Crosshair, Loader2, Check, Navigation, Search } from 'lucide-react';
 import { useDeliveryLocation } from '../contexts/LocationContext';
-import { useGoogleMapsLoader } from '../hooks/useGoogleMapsLoader';
-import {
-  hasGoogleMapsKey,
-  reverseGeocodeWithMapsJs,
-  searchPlacesGoogle,
-} from '../utils/googleMaps';
 import { motion, AnimatePresence } from 'framer-motion';
+import LocationPickerMap from './LocationPickerMap';
 
 const DEFAULT_CENTER = { lat: 28.6139, lng: 77.209 };
-const MAP_CONTAINER_STYLE = { width: '100%', height: '100%' };
 
-const mapOptions = {
-  disableDefaultUI: false,
-  zoomControl: true,
-  mapTypeControl: false,
-  streetViewControl: false,
-  fullscreenControl: false,
-  clickableIcons: true,
-  gestureHandling: 'greedy',
-};
+async function reverseGeocodeOSM(lat, lng) {
+  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+  const data = await res.json();
+  if (data && data.display_name) {
+    return data.display_name;
+  }
+  throw new Error('Address not found');
+}
+
+async function searchPlacesOSM(query) {
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+  const data = await res.json();
+  return data.map(item => ({
+    name: item.name,
+    address: item.display_name,
+    lat: Number(item.lat),
+    lng: Number(item.lon)
+  }));
+}
 
 function ModalShell({ children, onClose, subtitle }) {
   return (
@@ -50,7 +43,7 @@ function ModalShell({ children, onClose, subtitle }) {
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="relative w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden max-h-[94vh] flex flex-col"
+        className="relative w-full sm:max-w-xl bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-2">
@@ -81,59 +74,7 @@ function ModalShell({ children, onClose, subtitle }) {
   );
 }
 
-function MissingApiKeyContent({ onClose }) {
-  return (
-    <>
-      <div className="m-4 rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30 p-4 space-y-3">
-        <div className="flex items-start gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-              Google Maps API key required
-            </p>
-            <p className="text-xs text-amber-800/90 dark:text-amber-200/80 mt-1 leading-relaxed">
-              Add your key in <code className="font-mono text-[11px]">frontend/.env</code>:
-            </p>
-            <pre className="mt-2 text-[11px] font-mono bg-white/80 dark:bg-slate-900/60 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 overflow-x-auto">
-              VITE_GOOGLE_MAPS_API_KEY=your_key_here
-            </pre>
-            <ol className="mt-3 text-xs text-amber-900/90 dark:text-amber-100/80 space-y-1 list-decimal list-inside">
-              <li>Open Google Cloud Console</li>
-              <li>
-                Enable <strong>Maps JavaScript API</strong>, <strong>Geocoding API</strong>,{' '}
-                <strong>Places API</strong>
-              </li>
-              <li>Create an API key (restrict by HTTP referrer)</li>
-              <li>
-                Restart <code className="font-mono">npm run dev</code>
-              </li>
-            </ol>
-            <a
-              href="https://console.cloud.google.com/google/maps-apis"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 mt-3 text-xs font-bold text-blue-700 dark:text-blue-400 hover:underline"
-            >
-              Open Google Maps Platform <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-      </div>
-      <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800">
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-600"
-        >
-          Close
-        </button>
-      </div>
-    </>
-  );
-}
-
-/** Only mounted when a real API key exists — loads Google Maps JS. */
-function GoogleLocationPicker({ onClose }) {
+function OSMLocationPicker({ onClose }) {
   const {
     lat: savedLat,
     lng: savedLng,
@@ -141,8 +82,6 @@ function GoogleLocationPicker({ onClose }) {
     setLocation,
     refreshCurrentLocation,
   } = useDeliveryLocation();
-
-  const { isLoaded, loadError } = useGoogleMapsLoader(true);
 
   const initial = useMemo(() => {
     if (savedLat != null && savedLng != null) {
@@ -161,22 +100,12 @@ function GoogleLocationPicker({ onClose }) {
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [localError, setLocalError] = useState('');
-  const mapRef = useRef(null);
-
-  useEffect(() => {
-    setDraftLat(initial.lat);
-    setDraftLng(initial.lng);
-    setDraftAddress(initial.address);
-    setQuery('');
-    setResults([]);
-    setLocalError('');
-  }, [initial]);
 
   const resolveAddress = useCallback(async (lat, lng) => {
     setResolving(true);
     setLocalError('');
     try {
-      const addr = await reverseGeocodeWithMapsJs(lat, lng);
+      const addr = await reverseGeocodeOSM(lat, lng);
       setDraftAddress(addr);
     } catch {
       setDraftAddress(`${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`);
@@ -187,33 +116,12 @@ function GoogleLocationPicker({ onClose }) {
   }, []);
 
   const handlePick = useCallback(
-    (lat, lng) => {
-      setDraftLat(lat);
-      setDraftLng(lng);
-      resolveAddress(lat, lng);
-      mapRef.current?.panTo({ lat, lng });
+    (position) => {
+      setDraftLat(position.lat);
+      setDraftLng(position.lng);
+      resolveAddress(position.lat, position.lng);
     },
     [resolveAddress]
-  );
-
-  const onMapLoad = useCallback((map) => {
-    mapRef.current = map;
-  }, []);
-
-  const onMapClick = useCallback(
-    (e) => {
-      if (!e.latLng) return;
-      handlePick(e.latLng.lat(), e.latLng.lng());
-    },
-    [handlePick]
-  );
-
-  const onMarkerDragEnd = useCallback(
-    (e) => {
-      if (!e.latLng) return;
-      handlePick(e.latLng.lat(), e.latLng.lng());
-    },
-    [handlePick]
   );
 
   const handleUseCurrent = async () => {
@@ -225,8 +133,6 @@ function GoogleLocationPicker({ onClose }) {
         setDraftLat(loc.lat);
         setDraftLng(loc.lng);
         setDraftAddress(loc.address || '');
-        mapRef.current?.panTo({ lat: loc.lat, lng: loc.lng });
-        mapRef.current?.setZoom(17);
       }
     } catch (err) {
       setLocalError(
@@ -240,7 +146,6 @@ function GoogleLocationPicker({ onClose }) {
   };
 
   useEffect(() => {
-    if (!isLoaded) return;
     if (!query.trim() || query.trim().length < 3) {
       setResults([]);
       return;
@@ -249,26 +154,26 @@ function GoogleLocationPicker({ onClose }) {
     const t = setTimeout(async () => {
       setSearching(true);
       try {
-        const items = await searchPlacesGoogle(query, draftLat, draftLng);
+        const items = await searchPlacesOSM(query);
         if (!cancelled) setResults(items);
       } catch {
         if (!cancelled) setResults([]);
       } finally {
         if (!cancelled) setSearching(false);
       }
-    }, 400);
+    }, 800); // Increased debounce to avoid rate limits
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [query, isLoaded, draftLat, draftLng]);
+  }, [query]);
 
   const handleSelectResult = (item) => {
-    handlePick(item.lat, item.lng);
+    setDraftLat(item.lat);
+    setDraftLng(item.lng);
     setDraftAddress(item.address);
     setQuery('');
     setResults([]);
-    mapRef.current?.setZoom(17);
   };
 
   const handleConfirm = async () => {
@@ -286,8 +191,6 @@ function GoogleLocationPicker({ onClose }) {
     }
   };
 
-  const center = { lat: Number(draftLat), lng: Number(draftLng) };
-
   return (
     <>
       <div className="px-4 pt-3 pb-2 shrink-0 relative z-30">
@@ -297,7 +200,7 @@ function GoogleLocationPicker({ onClose }) {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search area, street, landmark (Google Places)..."
+            placeholder="Search area, street, landmark (OpenStreetMap)..."
             className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:bg-white dark:focus:bg-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15"
           />
           {searching && (
@@ -314,16 +217,7 @@ function GoogleLocationPicker({ onClose }) {
                   className="w-full text-left px-3 py-2.5 text-xs sm:text-sm text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-b border-slate-50 dark:border-slate-800 last:border-0 flex gap-2"
                 >
                   <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-                  <span className="line-clamp-2">
-                    {item.name && item.name !== item.address ? (
-                      <>
-                        <span className="font-semibold">{item.name}</span>
-                        <span className="text-slate-500"> — {item.address}</span>
-                      </>
-                    ) : (
-                      item.address
-                    )}
-                  </span>
+                  <span className="line-clamp-2">{item.address}</span>
                 </button>
               </li>
             ))}
@@ -332,40 +226,16 @@ function GoogleLocationPicker({ onClose }) {
       </div>
 
       <div className="px-4 pb-2 shrink-0">
-        <div
-          className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-200"
-          style={{ height: 300, width: '100%' }}
-        >
-          {loadError && (
-            <div className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-rose-600 bg-rose-50">
-              Failed to load Google Maps. Check API key, billing, and enabled APIs
-              (Maps JavaScript, Geocoding, Places).
-            </div>
-          )}
-          {!isLoaded && !loadError && (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm gap-2">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              Loading Google Maps…
-            </div>
-          )}
-          {isLoaded && !loadError && (
-            <GoogleMap
-              mapContainerStyle={MAP_CONTAINER_STYLE}
-              center={center}
-              zoom={16}
-              options={mapOptions}
-              onLoad={onMapLoad}
-              onClick={onMapClick}
-            >
-              <Marker position={center} draggable onDragEnd={onMarkerDragEnd} />
-            </GoogleMap>
-          )}
-
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+          <LocationPickerMap 
+            initialPosition={{ lat: draftLat, lng: draftLng }} 
+            onLocationSelect={handlePick} 
+          />
           <button
             type="button"
             onClick={handleUseCurrent}
-            disabled={gpsLoading || !isLoaded}
-            className="absolute bottom-3 right-3 z-[2] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-blue-600 shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-slate-800 disabled:opacity-60"
+            disabled={gpsLoading}
+            className="absolute bottom-3 right-3 z-[1000] flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 text-xs font-semibold text-blue-600 shadow-lg border border-slate-200 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-slate-800 disabled:opacity-60"
           >
             {gpsLoading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -376,7 +246,7 @@ function GoogleLocationPicker({ onClose }) {
           </button>
         </div>
         <p className="text-[10px] text-slate-400 mt-1.5 px-0.5">
-          Powered by Google Maps · drag the pin or tap the map
+          Powered by Leaflet & OpenStreetMap · drag the map and click to set pin
         </p>
       </div>
 
@@ -394,7 +264,7 @@ function GoogleLocationPicker({ onClose }) {
                 </p>
               ) : (
                 <p className="text-sm text-slate-800 dark:text-slate-100 leading-snug">
-                  {draftAddress || 'Move the pin to choose a location'}
+                  {draftAddress || 'Tap the map to choose a location'}
                 </p>
               )}
               <p className="text-[11px] text-slate-400 mt-1 font-mono">
@@ -419,7 +289,7 @@ function GoogleLocationPicker({ onClose }) {
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={saving || resolving || draftLat == null || !isLoaded}
+          disabled={saving || resolving || draftLat == null}
           className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2 shadow-md shadow-blue-600/20"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
@@ -436,15 +306,9 @@ const LocationPickerModal = () => {
   return (
     <AnimatePresence>
       {isPickerOpen && (
-        !hasGoogleMapsKey() ? (
-          <ModalShell onClose={closePicker} subtitle="Google Maps API key required">
-            <MissingApiKeyContent onClose={closePicker} />
-          </ModalShell>
-        ) : (
-          <ModalShell onClose={closePicker} subtitle="Google Maps — drag pin or search place">
-            <GoogleLocationPicker onClose={closePicker} />
-          </ModalShell>
-        )
+        <ModalShell onClose={closePicker} subtitle="OpenStreetMap — click on map or search place">
+          <OSMLocationPicker onClose={closePicker} />
+        </ModalShell>
       )}
     </AnimatePresence>
   );
