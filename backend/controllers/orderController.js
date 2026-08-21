@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Shop = require('../models/Shop');
 const Product = require('../models/Product');
@@ -129,7 +130,6 @@ exports.placeOrder = async (req, res) => {
     }
 
     // Normalize line items — reject bad productIds early with a clear message
-    const mongoose = require('mongoose');
     const normalizedItems = [];
     for (const raw of items) {
       const productId = raw?.productId != null
@@ -991,14 +991,14 @@ exports.submitDeliveryFeedback = async (req, res) => {
     };
     order.timeline.push({
       status: 'feedback_submitted',
-      description: `Delivery rated ${ rating }/5`,
-  });
-  await order.save();
+      description: `Delivery rated ${rating}/5`,
+    });
+    await order.save();
 
-  res.json({ message: 'Thanks for your feedback!', order: await loadFullOrder(order._id) });
-} catch (error) {
-  res.status(500).json({ message: 'Server error', error: error.message });
-}
+    res.json({ message: 'Thanks for your feedback!', order: await loadFullOrder(order._id) });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
 };
 
 // @desc    Raise order-specific support ticket
@@ -1101,12 +1101,15 @@ exports.getOrderTracking = async (req, res) => {
 exports.updateOrderTimeline = async (req, res) => {
   try {
     const { status, description } = req.body;
+    if (!status) {
+      return res.status(400).json({ message: 'Status is required' });
+    }
     const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
     order.status = status;
-    order.timeline.push({ status, description });
+    order.timeline.push({ status, description: description || '' });
     await order.save();
 
     const populatedOrder = await loadFullOrder(order._id);
@@ -1144,6 +1147,9 @@ exports.verifyDelivery = async (req, res) => {
       return res.status(403).json({ message: 'You are not assigned to this delivery.' });
     }
 
+    if (!otp) {
+      return res.status(400).json({ message: 'OTP is required' });
+    }
     if (order.deliveryOTP !== otp.toString()) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
@@ -1172,4 +1178,4 @@ exports.verifyDelivery = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-};  
+};
